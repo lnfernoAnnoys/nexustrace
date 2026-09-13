@@ -1,0 +1,141 @@
+import type { Relationship, RelationshipType } from "@/types";
+
+const BW = "case-2026-0091";
+const HW = "case-2026-0147";
+const CF = "case-2026-0163";
+const AS = "case-2026-0052";
+
+let seq = 1;
+function rel(
+  type: RelationshipType,
+  sourceId: string,
+  targetId: string,
+  strength: number,
+  frequency: number,
+  startDate: string,
+  endDate: string,
+  evidenceSource: string,
+  caseId: string,
+  confidence: number,
+  note?: string,
+): Relationship {
+  return {
+    id: `r${String(seq++).padStart(3, "0")}`,
+    type,
+    sourceId,
+    targetId,
+    strength,
+    frequency,
+    startDate,
+    endDate,
+    evidenceSource,
+    caseId,
+    confidence,
+    note,
+  };
+}
+
+export const relationships: Relationship[] = [
+  // ---- Operation Blackwire (BW) ----
+  rel("call", "p01", "p03", 8, 142, "2026-04-05", "2026-09-10", "CDR — Airtel/Vi tower dump", BW, 96),
+  rel("call", "p01", "p04", 7, 88, "2026-04-06", "2026-09-08", "CDR — Airtel tower dump", BW, 94),
+  rel("call", "p01", "p08", 6, 61, "2026-04-12", "2026-09-05", "CDR — Vi tower dump", BW, 91),
+  rel("call", "p01", "p13", 7, 97, "2026-04-08", "2026-09-11", "CDR — Airtel tower dump", BW, 95),
+  rel("association", "p01", "p18", 5, 12, "2026-04-15", "2026-08-30", "Field surveillance report", BW, 78),
+  rel("business", "p01", "o01", 9, 1, "2019-06-12", "2026-09-11", "MCA company filing", BW, 98),
+  rel("business", "p13", "o01", 6, 1, "2020-01-10", "2026-09-11", "MCA company filing", BW, 88),
+  rel("co_location", "p01", "l01", 8, 34, "2026-04-10", "2026-09-10", "CCTV + tower triangulation", BW, 92),
+  rel("co_location", "p13", "l01", 8, 41, "2026-04-10", "2026-09-11", "CCTV + tower triangulation", BW, 93),
+  rel("co_location", "p03", "l01", 7, 29, "2026-04-11", "2026-09-09", "CCTV + tower triangulation", BW, 90),
+  rel("co_location", "p04", "l02", 7, 18, "2026-04-20", "2026-08-28", "Border checkpoint log correlation", BW, 85),
+  rel("co_location", "p07", "l02", 6, 22, "2026-04-22", "2026-09-01", "Border checkpoint log correlation", BW, 83),
+  rel("co_location", "p14", "l02", 8, 26, "2026-04-19", "2026-09-02", "Duty roster + tower triangulation", BW, 87),
+  rel("call", "p01", "p07", 6, 34, "2026-04-25", "2026-08-30", "CDR — international roaming record", BW, 82),
+  rel("call", "p07", "p14", 7, 19, "2026-04-27", "2026-08-25", "CDR — Vi tower dump", BW, 84),
+  rel("financial_transaction", "p07", "p14", 6, 4, "2026-05-02", "2026-08-10", "Suspicious cash-deposit pattern, vigilance inquiry", BW, 70, "Estimated ₹40,000–₹60,000 per transfer — suspected bribe for consignment clearance"),
+  rel("vehicle_ownership", "p01", "v01", 9, 1, "2022-03-01", "2026-09-11", "RTO registration record", BW, 99),
+  rel("vehicle_ownership", "p04", "v02", 9, 1, "2021-07-14", "2026-09-11", "RTO registration record", BW, 99),
+  rel("vehicle_ownership", "p18", "v03", 8, 1, "2023-02-19", "2026-09-11", "RTO registration record", BW, 96),
+  rel("vehicle_ownership", "p08", "v05", 9, 1, "2020-11-05", "2026-09-11", "RTO registration record", BW, 99),
+  rel("association", "p07", "v06", 5, 9, "2026-05-01", "2026-08-20", "ANPR camera correlation — ownership inconclusive", BW, 61),
+  rel("co_location", "p01", "l05", 6, 8, "2026-05-10", "2026-08-15", "Field surveillance report", BW, 74),
+  rel("co_location", "p07", "l05", 6, 6, "2026-05-12", "2026-08-14", "Field surveillance report", BW, 72),
+  rel("association", "p19", "p01", 3, 5, "2026-05-05", "2026-07-30", "Informant debrief notes", BW, 65, "Family connection — occasional low-grade information source"),
+  rel("family", "p01", "p19", 9, 1, "1999-07-07", "2026-09-11", "Public records — family registry", BW, 90, "Cousins"),
+  rel("call", "p19", "p01", 3, 14, "2026-05-06", "2026-07-28", "CDR — Vi tower dump", BW, 80),
+  rel("call", "p03", "p08", 6, 55, "2026-04-14", "2026-09-04", "CDR — Airtel/Vi tower dump", BW, 89),
+  rel("call", "p04", "p03", 5, 40, "2026-04-16", "2026-09-03", "CDR — Vi tower dump", BW, 86),
+  rel("call", "p18", "p01", 4, 21, "2026-04-29", "2026-08-22", "CDR — Airtel tower dump", BW, 79),
+  rel("call", "p13", "p03", 6, 48, "2026-04-11", "2026-09-06", "CDR — Airtel tower dump", BW, 88),
+  rel("call", "p13", "p18", 4, 15, "2026-05-01", "2026-08-18", "CDR — Airtel tower dump", BW, 75),
+  rel("sms", "p01", "p08", 4, 63, "2026-04-13", "2026-09-02", "CDR — SMS metadata", BW, 81),
+  rel("association", "p20", "p07", 6, 7, "2026-05-15", "2026-08-05", "Field surveillance + informant debrief", BW, 68, "Resurfaced contact from closed Arms Smuggling case"),
+  rel("co_location", "p20", "l08", 6, 11, "2026-05-14", "2026-08-08", "Field surveillance report", BW, 77),
+  rel("co_location", "p07", "l08", 6, 13, "2026-05-13", "2026-08-09", "Field surveillance report", BW, 78),
+  rel("call", "p02", "p01", 8, 27, "2026-04-20", "2026-09-01", "CDR — Jio tower dump (cross-case correlation)", BW, 90, "Key bridge contact between Blackwire and the Hawala Transaction Ring"),
+  rel("financial_transaction", "p02", "p01", 7, 6, "2026-04-22", "2026-08-28", "Suspicious Transaction Report (STR) — FIU-IND", BW, 84, "Recurring transfers, estimated ₹8–15 lakh per cycle"),
+  rel("financial_transaction", "p02", "o01", 5, 3, "2026-05-01", "2026-08-15", "Suspicious Transaction Report (STR) — FIU-IND", BW, 72, "Routed via freight-invoice over-billing"),
+
+  // ---- Arms Smuggling Nexus (AS, closed but linked) ----
+  rel("vehicle_ownership", "p20", "v08", 8, 1, "2019-08-22", "2026-02-19", "RTO registration record", AS, 95),
+  rel("association", "p12", "p20", 6, 4, "2025-09-10", "2026-02-19", "Case file — Arms Smuggling Nexus", AS, 80),
+  rel("business", "p12", "o06", 7, 1, "2015-03-21", "2026-02-19", "Case file — Arms Smuggling Nexus", AS, 85),
+  rel("business", "p07", "o06", 6, 1, "2015-06-01", "2026-09-11", "Case file cross-reference", AS, 74),
+  rel("business", "p20", "o06", 6, 1, "2016-01-15", "2026-09-11", "Case file cross-reference", AS, 74),
+  rel("co_location", "o06", "l06", 5, 5, "2025-10-01", "2026-01-20", "Port CCTV + cargo manifest", AS, 70),
+  rel("co_location", "p12", "l06", 6, 7, "2025-09-15", "2026-01-18", "Port CCTV + cargo manifest", AS, 76),
+
+  // ---- Hawala Transaction Ring (HW) ----
+  rel("financial_transaction", "p02", "p06", 9, 11, "2026-05-20", "2026-09-09", "Suspicious Transaction Report (STR) — FIU-IND", HW, 93, "Largest recurring transfer chain — estimated ₹18–25 lakh per cycle"),
+  rel("call", "p02", "p06", 7, 38, "2026-05-18", "2026-09-10", "CDR — Jio/Airtel tower dump", HW, 90),
+  rel("business", "p06", "o05", 9, 1, "2010-11-02", "2026-09-11", "Trade license record", HW, 97),
+  rel("financial_transaction", "p06", "f05", 8, 20, "2026-01-01", "2026-09-09", "Bank statement analysis", HW, 91, "Regular trading-account settlements"),
+  rel("business", "o05", "f05", 9, 1, "2010-11-02", "2026-09-11", "Bank KYC record", HW, 98),
+  rel("business", "p05", "o03", 8, 1, "2020-09-30", "2026-09-11", "MCA company filing", HW, 95),
+  rel("business", "p16", "o03", 6, 1, "2020-09-30", "2026-09-11", "MCA company filing — nominee director", HW, 88),
+  rel("call", "p05", "p06", 6, 24, "2026-05-25", "2026-09-07", "CDR — Airtel tower dump", HW, 85),
+  rel("financial_transaction", "p05", "f03", 7, 8, "2026-06-01", "2026-09-05", "Bank statement analysis", HW, 82, "Property-linked layering transactions"),
+  rel("business", "o03", "f03", 9, 1, "2020-10-05", "2026-09-11", "Bank KYC record", HW, 97),
+  rel("business", "p15", "o02", 6, 1, "2018-01-20", "2026-09-11", "MCA / GST filing", HW, 80),
+  rel("business", "p02", "o02", 6, 1, "2017-02-04", "2026-09-11", "Trade correspondence seized during raid", HW, 75),
+  rel("business", "o02", "f02", 9, 1, "2017-02-10", "2026-09-11", "Bank KYC record", HW, 96),
+  rel("financial_transaction", "p02", "f02", 6, 5, "2026-06-10", "2026-09-01", "Bank statement analysis", HW, 78),
+  rel("call", "p15", "p06", 5, 17, "2026-05-28", "2026-08-30", "CDR — Vi tower dump", HW, 79),
+  rel("co_location", "p15", "l03", 6, 14, "2026-05-30", "2026-08-25", "Field surveillance report", HW, 81),
+  rel("co_location", "p06", "l03", 7, 19, "2026-05-22", "2026-09-02", "Field surveillance report", HW, 86),
+  rel("co_location", "p05", "l07", 5, 6, "2026-06-05", "2026-08-10", "Field surveillance report", HW, 68),
+  rel("co_location", "p06", "l07", 7, 15, "2026-05-15", "2026-09-04", "Field surveillance report", HW, 85),
+  rel("association", "p16", "p05", 5, 3, "2020-09-30", "2026-08-01", "MCA filing cross-reference", HW, 70),
+  rel("financial_transaction", "p02", "f01", 6, 9, "2026-04-25", "2026-09-01", "Bank statement analysis", HW, 80, "Personal account, source account for onward transfers"),
+  rel("financial_transaction", "p06", "p15", 4, 10, "2026-06-01", "2026-08-28", "Bank statement analysis", HW, 66, "Small-value hawala settlements"),
+  rel("financial_transaction", "p15", "f02", 4, 6, "2026-06-08", "2026-08-20", "Bank statement analysis", HW, 64),
+  rel("family", "p06", "p15", 8, 1, "1990-12-20", "2026-09-11", "Public records — family registry", HW, 88, "Uncle–niece relationship, explains trusted sub-agent role"),
+
+  // circular financial layering pattern flagged by AI (f01 -> f02 -> f03 -> f05 -> f01)
+  rel("financial_transaction", "f01", "f02", 6, 4, "2026-07-01", "2026-08-25", "Bank statement analysis", HW, 75, "Layer 1 — ₹6.2L transferred"),
+  rel("financial_transaction", "f02", "f03", 6, 3, "2026-07-05", "2026-08-27", "Bank statement analysis", HW, 74, "Layer 2 — ₹5.8L transferred"),
+  rel("financial_transaction", "f03", "f05", 6, 3, "2026-07-10", "2026-08-29", "Bank statement analysis", HW, 73, "Layer 3 — ₹5.4L transferred"),
+  rel("financial_transaction", "f05", "f01", 6, 2, "2026-07-15", "2026-08-31", "Bank statement analysis", HW, 71, "Layer 4 — funds return to origin account, confirming circular pattern"),
+
+  // ---- Cyber Fraud Syndicate (CF) ----
+  rel("call", "p09", "p10", 8, 76, "2026-06-25", "2026-09-08", "CDR — Jio tower dump", CF, 92),
+  rel("call", "p09", "p17", 7, 58, "2026-06-26", "2026-09-09", "CDR — Jio tower dump", CF, 90),
+  rel("call", "p09", "p11", 5, 22, "2026-06-28", "2026-08-30", "CDR — Jio tower dump", CF, 78),
+  rel("business", "p09", "o04", 9, 1, "2023-01-18", "2026-09-11", "MCA company filing", CF, 96),
+  rel("business", "p17", "o04", 7, 1, "2023-02-01", "2026-09-11", "MCA company filing", CF, 88),
+  rel("business", "p10", "o04", 6, 1, "2023-03-15", "2026-09-11", "Employment record seized in raid", CF, 82),
+  rel("financial_transaction", "p09", "f04", 8, 14, "2026-07-01", "2026-09-05", "Bank statement analysis", CF, 89),
+  rel("business", "o04", "f04", 9, 1, "2023-01-20", "2026-09-11", "Bank KYC record", CF, 97),
+  rel("financial_transaction", "p11", "f04", 6, 27, "2026-07-05", "2026-09-06", "Mule-account transaction trace", CF, 84, "Funds routed through recruited mule accounts"),
+  rel("co_location", "p10", "l04", 8, 45, "2026-06-25", "2026-09-09", "CCTV + tower triangulation", CF, 91),
+  rel("co_location", "p17", "l04", 7, 38, "2026-06-27", "2026-09-07", "CCTV + tower triangulation", CF, 88),
+  rel("co_location", "p11", "l04", 4, 9, "2026-07-10", "2026-08-20", "CCTV + tower triangulation", CF, 62),
+  rel("co_location", "p09", "l04", 8, 50, "2026-06-24", "2026-09-10", "CCTV + tower triangulation", CF, 93),
+  rel("vehicle_ownership", "p09", "v07", 9, 1, "2024-08-10", "2026-09-11", "RTO registration record", CF, 98),
+  rel("call", "p17", "p10", 5, 31, "2026-06-29", "2026-08-28", "CDR — Jio tower dump", CF, 80),
+  rel("call", "p11", "p10", 4, 24, "2026-07-02", "2026-08-22", "CDR — Airtel tower dump", CF, 76),
+  rel("sms", "p17", "p10", 3, 40, "2026-06-30", "2026-08-15", "CDR — SMS metadata", CF, 70),
+
+  // ---- Cross-case bridge surfaced by AI network analysis ----
+  rel("financial_transaction", "f04", "f01", 5, 2, "2026-08-01", "2026-08-29", "AI network analysis — anomalous inter-case transfer", CF, 58, "Unexpected financial link between the Cyber Fraud Syndicate's nodal account and the Hawala Transaction Ring's entry point"),
+];

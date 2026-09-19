@@ -146,6 +146,17 @@ export default function CaseWorkspace() {
     return { match, count: depth2.size - 1, subEntities, subRels };
   }, [query, caseEntities, relationships]);
 
+  // memoized so the graph doesn't see new objects on every render (must stay above the early return below)
+  const pathNodeIds = useMemo(() => (pathResult ? new Set(pathResult) : undefined), [pathResult]);
+  const pathEdgeIds = useMemo(
+    () => (pathResult ? pathToEdgeIds(pathResult, filteredRelationships) : undefined),
+    [pathResult, filteredRelationships],
+  );
+  const keyPlayerIds = useMemo(
+    () => (keyPlayersMode ? new Set(centrality.slice(0, 5).map((c) => c.entity.id)) : undefined),
+    [keyPlayersMode, centrality],
+  );
+
   if (!caseRecord) {
     return (
       <div className="py-20 text-center text-sm text-text-muted">
@@ -174,16 +185,6 @@ export default function CaseWorkspace() {
       setPathResult(undefined);
     }
   }
-
-  const pathNodeIds = useMemo(() => (pathResult ? new Set(pathResult) : undefined), [pathResult]);
-  const pathEdgeIds = useMemo(
-    () => (pathResult ? pathToEdgeIds(pathResult, filteredRelationships) : undefined),
-    [pathResult, filteredRelationships],
-  );
-  const keyPlayerIds = useMemo(
-    () => (keyPlayersMode ? new Set(centrality.slice(0, 5).map((c) => c.entity.id)) : undefined),
-    [keyPlayersMode, centrality],
-  );
 
   const entityTypeCounts = caseEntities.reduce<Record<string, number>>((acc, e) => {
     acc[e.type] = (acc[e.type] ?? 0) + 1;

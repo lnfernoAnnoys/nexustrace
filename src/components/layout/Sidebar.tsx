@@ -16,11 +16,13 @@ import {
   ChevronDown,
   ShieldHalf,
   Settings as SettingsIcon,
+  LogOut,
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserProfile } from "@/context/UserProfileContext";
+import { useAuth } from "@/context/AuthContext";
 
 const entityLinks = [
   { to: "/entities/person", label: "People", icon: Users },
@@ -37,6 +39,7 @@ export function Sidebar() {
   const location = useLocation();
   const entitiesActive = location.pathname.startsWith("/entities");
   const { profile, initials } = useUserProfile();
+  const { user, logout } = useAuth();
 
   return (
     <aside
@@ -137,13 +140,26 @@ export function Sidebar() {
           {!collapsed && (
             <Link to="/settings" className="min-w-0 flex-1 leading-tight">
               <p className="truncate text-xs font-medium text-text">{profile.name}</p>
-              <p className="truncate text-[10px] text-text-muted">{profile.badge} · {profile.department}</p>
+              <p className="truncate text-[10px] text-text-muted">
+                {[profile.badge, profile.department].filter(Boolean).join(" · ")}
+                {user && <span className="mono text-cyan-300/80"> · L{user.accessLevel}</span>}
+              </p>
             </Link>
           )}
           {!collapsed && (
-            <Link to="/settings" title="Settings" className="shrink-0 text-text-muted transition-colors hover:text-cyan-300">
-              <SettingsIcon size={14} />
-            </Link>
+            <>
+              <Link to="/settings" title="Settings" className="shrink-0 text-text-muted transition-colors hover:text-cyan-300">
+                <SettingsIcon size={14} />
+              </Link>
+              <button
+                onClick={logout}
+                title="Sign out"
+                aria-label="Sign out"
+                className="shrink-0 text-text-muted transition-colors hover:text-red"
+              >
+                <LogOut size={14} />
+              </button>
+            </>
           )}
         </div>
       </div>

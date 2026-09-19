@@ -1,0 +1,28 @@
+/*
+ * The admin console reuses the investigator site's components, so its look is set by re-pointing the
+ * accent palette (cyan on the investigator site) to violet. This makes the two sites easy to tell apart.
+ */
+:root {
+  --color-cyan: #a78bfa;
+  --color-cyan-200: #ddd6fe;
+  --color-cyan-300: #c4b5fd;
+  --color-cyan-400: #a78bfa;
+  --color-cyan-500: #8b5cf6;
+  --color-cyan-600: #7c3aed;
+}
+
+::selection {
+  background: rgba(167, 139, 250, 0.3);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.35), 0 0 24px rgba(167, 139, 250, 0.18);
+}
+
+/* the default button and active tab carry a hard-coded cyan glow */
+button.bg-cyan-500 {
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.3);
+}
+[role="tab"][data-state="active"] {
+  box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.3);
+}

@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
+import { RequireAuth } from "@/components/auth/RequireAuth";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Cases from "@/pages/Cases";
@@ -16,7 +17,13 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Login />} />
-      <Route element={<AppShell />}>
+      <Route
+        element={
+          <RequireAuth>
+            <AppShell />
+          </RequireAuth>
+        }
+      >
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/cases" element={<Cases />} />
         <Route path="/cases/:caseId" element={<CaseWorkspace />} />

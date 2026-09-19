@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, KeyRound, Laptop, Monitor, Shield, Smartphone } from "lucide-react";
+import { Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
@@ -8,17 +8,26 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { AccessPanel } from "@/components/settings/AccessPanel";
+import { ChangePasswordCard, SessionsCard, TwoFactorCard } from "@/components/settings/SecurityPanels";
 import { useUserProfile, type UserProfile } from "@/context/UserProfileContext";
+import { ApiError } from "@/lib/api";
 
 export default function Settings() {
-  const { profile, setProfile, notifications, setNotifications, initials } = useUserProfile();
+  const { profile, updateProfile, notifications, setNotifications, initials } = useUserProfile();
   const [draft, setDraft] = useState<UserProfile>(profile);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
-  function saveProfile() {
-    setProfile(draft);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1800);
+  async function saveProfile() {
+    setSaveError("");
+    try {
+      await updateProfile(draft);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1800);
+    } catch (err) {
+      setSaveError(err instanceof ApiError ? err.message : "Could not save your profile.");
+    }
   }
 
   return (
@@ -33,6 +42,7 @@ export default function Settings() {
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="access">Access</TabsTrigger>
           <TabsTrigger value="appearance">Appearance</TabsTrigger>
         </TabsList>
 
@@ -72,6 +82,7 @@ export default function Settings() {
               <div className="flex items-center gap-3">
                 <Button onClick={saveProfile}>{saved ? <><Check size={14} /> Saved</> : "Save Changes"}</Button>
                 {saved && <span className="text-xs text-green">Profile updated across the workspace</span>}
+                {saveError && <span role="alert" className="text-xs text-red">{saveError}</span>}
               </div>
             </CardContent>
           </Card>
@@ -120,48 +131,15 @@ export default function Settings() {
         {/* SECURITY */}
         <TabsContent value="security">
           <div className="flex max-w-xl flex-col gap-4">
-            <Card>
-              <CardHeader><CardTitle className="flex items-center gap-1.5"><KeyRound size={14} className="text-cyan-400" /> Change Password</CardTitle></CardHeader>
-              <CardContent className="flex flex-col gap-3">
-                <div>
-                  <Label className="mb-1.5 block">Current Password</Label>
-                  <Input type="password" placeholder="••••••••••" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="mb-1.5 block">New Password</Label>
-                    <Input type="password" placeholder="••••••••••" />
-                  </div>
-                  <div>
-                    <Label className="mb-1.5 block">Confirm Password</Label>
-                    <Input type="password" placeholder="••••••••••" />
-                  </div>
-                </div>
-                <Button className="w-fit">Update Password</Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader><CardTitle className="flex items-center gap-1.5"><Shield size={14} className="text-cyan-400" /> Two-Factor Authentication</CardTitle></CardHeader>
-              <CardContent>
-                <ToggleRow
-                  label="Require 2FA on sign-in"
-                  description="Adds an authenticator app code as a second factor, as required for MHA restricted-access systems"
-                  checked={true}
-                  onChange={() => {}}
-                />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader><CardTitle>Active Sessions</CardTitle></CardHeader>
-              <CardContent className="flex flex-col gap-2">
-                <SessionRow icon={Monitor} device="Windows · Chrome" location="Delhi, IN" active />
-                <SessionRow icon={Smartphone} device="Android · NexusTrace Mobile" location="Gurugram, IN" />
-                <SessionRow icon={Laptop} device="macOS · Chrome" location="Mumbai, IN" />
-              </CardContent>
-            </Card>
+            <ChangePasswordCard />
+            <TwoFactorCard />
+            <SessionsCard />
           </div>
+        </TabsContent>
+
+        {/* ACCESS LEVEL */}
+        <TabsContent value="access">
+          <AccessPanel />
         </TabsContent>
 
         {/* APPEARANCE */}
@@ -206,29 +184,6 @@ function ToggleRow({
         <p className="text-[11px] text-text-muted">{description}</p>
       </div>
       <Switch checked={checked} onCheckedChange={onChange} />
-    </div>
-  );
-}
-
-function SessionRow({
-  icon: Icon,
-  device,
-  location,
-  active,
-}: {
-  icon: typeof Monitor;
-  device: string;
-  location: string;
-  active?: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-3 rounded-md border border-border bg-panel-hover/30 px-3 py-2.5">
-      <Icon size={15} className="shrink-0 text-text-muted" />
-      <div className="min-w-0 flex-1">
-        <p className="text-xs text-text">{device}</p>
-        <p className="text-[10px] text-text-muted">{location}</p>
-      </div>
-      {active && <Badge variant="green">This device</Badge>}
     </div>
   );
 }

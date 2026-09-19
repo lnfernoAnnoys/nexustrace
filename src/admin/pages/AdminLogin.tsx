@@ -1,74 +1,46 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Navigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Copy, KeyRound, Lock, ShieldCheck, ShieldHalf, Smartphone, User, UserPlus } from "lucide-react";
+import { ArrowLeft, ArrowRight, Copy, KeyRound, Lock, ShieldCheck, Smartphone, User, KeySquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BackupCodes } from "@/components/auth/BackupCodes";
-import { NetworkGraph } from "@/components/graph/NetworkGraph";
-import { allEntities, relationships } from "@/data";
-import { useAuth, type AuthUser } from "@/context/AuthContext";
+import type { AuthUser } from "@/context/AuthContext";
 import { api, ApiError } from "@/lib/api";
+import { useAdminAuth } from "../AdminAuthContext";
 
 type Step =
   | { kind: "credentials" }
-  | { kind: "signup" }
   | { kind: "verify" }
   | { kind: "enroll"; qr: string; secret: string }
   | { kind: "backup"; codes: string[]; user: AuthUser };
 
-function groupSecret(secret: string) {
-  return secret.replace(/(.{4})/g, "$1 ").trim();
-}
+const groupSecret = (secret: string) => secret.replace(/(.{4})/g, "$1 ").trim();
 
-export default function Login() {
-  const { status, setUser } = useAuth();
+export default function AdminLogin() {
+  const { status, setAdmin } = useAdminAuth();
   const [step, setStep] = useState<Step>({ kind: "credentials" });
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [confirm, setConfirm] = useState("");
   const [code, setCode] = useState("");
   const [useBackupCode, setUseBackupCode] = useState(false);
   const [savedCodes, setSavedCodes] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [signupOpen, setSignupOpen] = useState(false);
 
-  useEffect(() => {
-    api<{ signupOpen: boolean }>("/auth/config")
-      .then((c) => setSignupOpen(c.signupOpen))
-      .catch(() => setSignupOpen(false));
-  }, []);
-
-  if (status === "authenticated") return <Navigate to="/dashboard" replace />;
+  if (status === "authenticated") return <Navigate to="/" replace />;
 
   function restart(message = "") {
     setStep({ kind: "credentials" });
     setPassword("");
-    setConfirm("");
     setCode("");
     setUseBackupCode(false);
     setError(message);
   }
 
   function handleError(err: unknown) {
-    if (err instanceof ApiError && err.data?.restart) {
-      restart(err.message);
-      return;
-    }
+    if (err instanceof ApiError && err.data?.restart) return restart(err.message);
     setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
-  }
-
-  /** After the password step (sign in or sign up) the server says which 2FA step comes next. */
-  async function beginSecondStep(next: "verify" | "enroll") {
-    if (next === "verify") {
-      setStep({ kind: "verify" });
-    } else {
-      const setup = await api<{ qr: string; secret: string }>("/auth/2fa/setup", { method: "POST" });
-      setStep({ kind: "enroll", qr: setup.qr, secret: setup.secret });
-    }
-    setCode("");
   }
 
   async function submitCredentials(e: FormEvent) {
@@ -76,52 +48,30 @@ export default function Login() {
     setError("");
     setBusy(true);
     try {
-      const { next } = await api<{ next: "verify" | "enroll" }>("/auth/login", {
+      const { next } = await api<{ next: "verify" | "enroll" }>("/admin/auth/login", {
         method: "POST",
         body: { username, password },
       });
-      await beginSecondStep(next);
+      if (next === "verify") {
+        setStep({ kind: "verify" });
+      } else {
+        const setup = await api<{ qr: string; secret: string }>("/admin/auth/2fa/setup", { method: "POST" });
+        setStep({ kind: "enroll", qr: setup.qr, secret: setup.secret });
+      }
+      setCode("");
     } catch (err) {
       handleError(err);
     } finally {
       setBusy(false);
     }
-  }
-
-  async function submitSignup(e: FormEvent) {
-    e.preventDefault();
-    if (password !== confirm) {
-      setError("The passwords don't match.");
-      return;
-    }
-    setError("");
-    setBusy(true);
-    try {
-      const { next } = await api<{ next: "verify" | "enroll" }>("/auth/signup", {
-        method: "POST",
-        body: { username, name: fullName, password },
-      });
-      await beginSecondStep(next);
-    } catch (err) {
-      handleError(err);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function switchTo(kind: "credentials" | "signup") {
-    setStep({ kind });
-    setPassword("");
-    setConfirm("");
-    setError("");
   }
 
   async function submitVerify(value: string) {
     setError("");
     setBusy(true);
     try {
-      const { user } = await api<{ user: AuthUser }>("/auth/2fa/verify", { method: "POST", body: { code: value } });
-      setUser(user);
+      const { user } = await api<{ user: AuthUser }>("/admin/auth/2fa/verify", { method: "POST", body: { code: value } });
+      setAdmin(user);
     } catch (err) {
       setCode("");
       handleError(err);
@@ -134,7 +84,7 @@ export default function Login() {
     setError("");
     setBusy(true);
     try {
-      const res = await api<{ user: AuthUser; backupCodes: string[] }>("/auth/2fa/enable", {
+      const res = await api<{ user: AuthUser; backupCodes: string[] }>("/admin/auth/2fa/enable", {
         method: "POST",
         body: { code: value },
       });
@@ -150,7 +100,7 @@ export default function Login() {
 
   async function back() {
     try {
-      await api("/auth/logout", { method: "POST" });
+      await api("/admin/auth/logout", { method: "POST" });
     } catch {
       // the pending session expires on its own
     }
@@ -158,10 +108,7 @@ export default function Login() {
   }
 
   function onCodeChange(raw: string, submit: (value: string) => void) {
-    if (useBackupCode) {
-      setCode(raw.toUpperCase());
-      return;
-    }
+    if (useBackupCode) return setCode(raw.toUpperCase());
     const digits = raw.replace(/\D/g, "").slice(0, 6);
     setCode(digits);
     if (digits.length === 6 && !busy) submit(digits);
@@ -189,11 +136,8 @@ export default function Login() {
 
   return (
     <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-bg py-8">
-      <div className="absolute inset-0 opacity-40">
-        <NetworkGraph entities={allEntities} relationships={relationships} layout="force" />
-      </div>
-      <div className="absolute inset-0 bg-gradient-to-b from-bg/60 via-bg/80 to-bg" />
       <div className="absolute inset-0 bg-grid opacity-60" />
+      <div className="absolute inset-0 bg-gradient-to-b from-bg/20 via-bg/70 to-bg" />
 
       <motion.div
         initial={{ opacity: 0, y: 12 }}
@@ -204,10 +148,10 @@ export default function Login() {
         <div className="glass rounded-xl border border-border-strong p-7 shadow-2xl">
           <div className="mb-6 flex flex-col items-center text-center">
             <div className="mb-3 flex size-12 items-center justify-center rounded-xl border border-cyan-500/30 bg-cyan-500/10 glow-cyan">
-              <ShieldHalf size={24} className="text-cyan-400" />
+              <KeySquare size={24} className="text-cyan-400" />
             </div>
-            <h1 className="text-lg font-semibold tracking-wide text-text">NexusTrace</h1>
-            <p className="text-xs text-text-muted">AI-Powered Criminal Network Analysis</p>
+            <h1 className="text-lg font-semibold tracking-wide text-text">NexusTrace Command</h1>
+            <p className="text-xs text-text-muted">Access Control Console</p>
           </div>
 
           <AnimatePresence mode="wait">
@@ -228,8 +172,8 @@ export default function Login() {
                       onChange={(e) => setUsername(e.target.value)}
                       autoComplete="username"
                       className="pl-8"
-                      placeholder="Investigator ID"
-                      aria-label="Investigator ID"
+                      placeholder="Administrator ID"
+                      aria-label="Administrator ID"
                     />
                   </div>
                   <div className="relative">
@@ -249,80 +193,6 @@ export default function Login() {
                     {busy ? "Verifying…" : "Continue"}
                     {!busy && <ArrowRight size={14} />}
                   </Button>
-                  {signupOpen && (
-                    <p className="text-center text-xs text-text-muted">
-                      New here?{" "}
-                      <button type="button" onClick={() => switchTo("signup")} className="text-cyan-300 hover:text-cyan-200">
-                        Create an account
-                      </button>
-                    </p>
-                  )}
-                </form>
-              )}
-
-              {step.kind === "signup" && (
-                <form onSubmit={submitSignup} className="flex flex-col gap-3">
-                  <div className="text-center">
-                    <UserPlus size={20} className="mx-auto mb-1.5 text-cyan-400" />
-                    <p className="text-sm font-medium text-text">Create your account</p>
-                    <p className="mt-0.5 text-xs text-text-muted">
-                      You'll set up an authenticator app in the next step.
-                    </p>
-                  </div>
-                  <Input
-                    autoFocus
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    autoComplete="name"
-                    placeholder="Full name"
-                    aria-label="Full name"
-                  />
-                  <div className="relative">
-                    <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-                    <Input
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      autoComplete="username"
-                      className="pl-8"
-                      placeholder="Investigator ID (or email)"
-                      aria-label="Investigator ID"
-                    />
-                  </div>
-                  <div className="relative">
-                    <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-                    <Input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      autoComplete="new-password"
-                      className="pl-8"
-                      placeholder="Password (10+ characters)"
-                      aria-label="Password"
-                    />
-                  </div>
-                  <div className="relative">
-                    <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-                    <Input
-                      type="password"
-                      value={confirm}
-                      onChange={(e) => setConfirm(e.target.value)}
-                      autoComplete="new-password"
-                      className="pl-8"
-                      placeholder="Confirm password"
-                      aria-label="Confirm password"
-                    />
-                  </div>
-                  {errorMessage}
-                  <Button type="submit" disabled={busy || !fullName || !username || !password || !confirm}>
-                    {busy ? "Creating…" : "Create account"}
-                    {!busy && <ArrowRight size={14} />}
-                  </Button>
-                  <p className="text-center text-xs text-text-muted">
-                    Already have an account?{" "}
-                    <button type="button" onClick={() => switchTo("credentials")} className="text-cyan-300 hover:text-cyan-200">
-                      Sign in
-                    </button>
-                  </p>
                 </form>
               )}
 
@@ -379,7 +249,8 @@ export default function Login() {
                     <Smartphone size={20} className="mx-auto mb-1.5 text-cyan-400" />
                     <p className="text-sm font-medium text-text">Set up two-factor authentication</p>
                     <p className="mt-0.5 text-xs text-text-muted">
-                      Scan this QR code with Google Authenticator, Microsoft Authenticator or Authy.
+                      Administrators must use an authenticator app. Scan this QR code with Google Authenticator, Microsoft
+                      Authenticator or Authy.
                     </p>
                   </div>
                   <img
@@ -434,12 +305,12 @@ export default function Login() {
                       type="checkbox"
                       checked={savedCodes}
                       onChange={(e) => setSavedCodes(e.target.checked)}
-                      className="size-3.5 accent-cyan-400"
+                      className="size-3.5 accent-violet-400"
                     />
                     I've saved these codes somewhere safe
                   </label>
-                  <Button type="button" disabled={!savedCodes} onClick={() => setUser(step.user)}>
-                    Continue to NexusTrace <ArrowRight size={14} />
+                  <Button type="button" disabled={!savedCodes} onClick={() => setAdmin(step.user)}>
+                    Open the console <ArrowRight size={14} />
                   </Button>
                 </div>
               )}
@@ -447,13 +318,9 @@ export default function Login() {
           </AnimatePresence>
         </div>
 
-        <div className="mt-4 flex items-center justify-center gap-2 text-center text-[10px] text-text-muted">
-          <span className="mono">Government of India</span>
-          <span>·</span>
-          <span>Ministry of Home Affairs</span>
-          <span>·</span>
-          <span className="text-amber">Restricted Access</span>
-        </div>
+        <p className="mt-4 text-center text-[10px] text-text-muted">
+          <span className="text-amber">Authorised administrators only.</span> Every change made here is recorded.
+        </p>
       </motion.div>
     </div>
   );

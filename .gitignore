@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Backend: SQLite database and the key that encrypts 2FA secrets (never commit these)
+server/data/
+.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

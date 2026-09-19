@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { api } from "@/lib/api";
+import { useAuth, type AuthUser } from "./AuthContext";
 
 export interface UserProfile {
   name: string;
@@ -17,18 +19,13 @@ export interface NotificationPrefs {
 
 interface UserProfileState {
   profile: UserProfile;
-  setProfile: (p: UserProfile) => void;
+  updateProfile: (p: UserProfile) => Promise<void>;
   notifications: NotificationPrefs;
   setNotifications: (n: NotificationPrefs) => void;
   initials: string;
 }
 
-const DEFAULT_PROFILE: UserProfile = {
-  name: "Insp. A. Sharma",
-  badge: "IPS-4471",
-  department: "MHA Task Force",
-  email: "a.sharma@mha.gov.in",
-};
+const EMPTY_PROFILE: UserProfile = { name: "", badge: "", department: "", email: "" };
 
 const DEFAULT_NOTIFICATIONS: NotificationPrefs = {
   criticalAlerts: true,
@@ -38,18 +35,7 @@ const DEFAULT_NOTIFICATIONS: NotificationPrefs = {
   evidenceProcessed: true,
 };
 
-const STORAGE_KEY = "nexustrace.userProfile";
 const NOTIF_STORAGE_KEY = "nexustrace.notificationPrefs";
-
-function loadProfile(): UserProfile {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...DEFAULT_PROFILE, ...JSON.parse(raw) };
-  } catch {
-    // ignore malformed storage, fall back to default
-  }
-  return DEFAULT_PROFILE;
-}
 
 function loadNotifications(): NotificationPrefs {
   try {
@@ -68,23 +54,29 @@ function initialsFor(name: string) {
 
 const UserProfileCtx = createContext<UserProfileState | null>(null);
 
+/** The profile comes from the signed-in account on the server; notification prefs stay on this device. */
 export function UserProfileProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfileState] = useState<UserProfile>(loadProfile);
+  const { user, setUser } = useAuth();
   const [notifications, setNotificationsState] = useState<NotificationPrefs>(loadNotifications);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
-  }, [profile]);
 
   useEffect(() => {
     localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(notifications));
   }, [notifications]);
 
+  const profile: UserProfile = user
+    ? { name: user.name, badge: user.badge, department: user.department, email: user.email }
+    : EMPTY_PROFILE;
+
+  async function updateProfile(next: UserProfile) {
+    const res = await api<{ user: AuthUser }>("/auth/profile", { method: "PATCH", body: next });
+    setUser(res.user);
+  }
+
   return (
     <UserProfileCtx.Provider
       value={{
         profile,
-        setProfile: setProfileState,
+        updateProfile,
         notifications,
         setNotifications: setNotificationsState,
         initials: initialsFor(profile.name),

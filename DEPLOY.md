@@ -2,6 +2,19 @@
 
 The plan: one small Azure server runs everything (both websites and the API), Caddy in front of it gives you HTTPS, and a free `.me` domain points at it. Total cost is ₹0 if you use the student credits.
 
+## Fast path: online today, no domain needed
+
+Every Azure server can have a free hostname of its own, like `nexustrace-sih.centralindia.cloudapp.azure.com`. Caddy gets a real HTTPS certificate for it, so it works exactly like a `.me` domain. Use this now and switch to the `.me` domain later (or never).
+
+1. Skip part 1 and part 3. Do **part 2** with an Azure account (a free trial works: it gives $200 of credit for 30 days and stops rather than charging you unless you upgrade). Pick a nearby region such as **Central India**, and size **Standard_B2s** (2 vCPU, 4 GiB; roughly $1 a day) so the build is comfortable. If a size or region isn't offered, take the next one.
+2. When the VM is created, open its **Public IP address** resource (VM page → Networking → click the public IP) → **Configuration** → type a **DNS name label**, e.g. `nexustrace-sih` → **Save**. The full name is shown as the FQDN, for example `nexustrace-sih.centralindia.cloudapp.azure.com`.
+3. Continue with parts 4, 5 and 6, and use that full name wherever the guide says `yourdomain.me`:
+   `sudo bash deploy/setup-server.sh nexustrace-sih.centralindia.cloudapp.azure.com`
+
+**For a presentation:** sign in once on the presenting laptop shortly before you start (investigator sessions last 8 hours, the admin console 2 hours), keep your authenticator phone and backup codes at hand, open the site once on your phone's mobile data to prove it works from outside, and keep `npm run dev` on your laptop as a backup.
+
+## Full plan (student perks and your own domain)
+
 Do part 1 first. Approval can take a few days, and everything else waits on it.
 
 ## 1. Get the free things

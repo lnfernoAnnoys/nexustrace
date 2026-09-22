@@ -1,10 +1,20 @@
-import type { Entity, EntityType, Relationship, RiskLevel } from "@/types";
-import { allEntities, entityById, people, phones, vehicles, organizations, locations, financialAccounts } from "./entities";
-import { relationships } from "./relationships";
-import { cases } from "./cases";
-import { events } from "./events";
-import { alerts } from "./alerts";
-import { evidenceDocuments } from "./evidence";
+import type { AIAlert, Entity, EntityType, Relationship, RiskLevel } from "@/types";
+import { labelMap, tr } from "@/i18n/core";
+import {
+  alerts,
+  allEntities,
+  cases,
+  entityById,
+  evidenceDocuments,
+  events,
+  financialAccounts,
+  locations,
+  organizations,
+  people,
+  phones,
+  relationships,
+  vehicles,
+} from "./store";
 
 export {
   allEntities,
@@ -21,21 +31,8 @@ export {
   alerts,
   evidenceDocuments,
 };
-
-// Populate each case's entityIds from the entities that declare membership in it,
-// so the two stay in sync without hand-maintaining both sides.
-for (const c of cases) {
-  c.entityIds = allEntities.filter((e) => e.caseIds.includes(c.id)).map((e) => e.id);
-}
-
-export const ENTITY_TYPE_LABEL: Record<EntityType, string> = {
-  person: "Person",
-  phone: "Phone Number",
-  vehicle: "Vehicle",
-  organization: "Organization",
-  location: "Location",
-  financial_account: "Financial Account",
-};
+// The names below are read in the current language each time they are used (see labelMap).
+export const ENTITY_TYPE_LABEL = labelMap<EntityType>("etype");
 
 export const ENTITY_TYPE_COLOR: Record<EntityType, string> = {
   person: "#22d3ee",
@@ -53,16 +50,7 @@ export const RISK_COLOR: Record<RiskLevel, string> = {
   critical: "#f43f5e",
 };
 
-export const RELATIONSHIP_TYPE_LABEL: Record<Relationship["type"], string> = {
-  call: "Phone Call",
-  sms: "SMS",
-  financial_transaction: "Financial Transaction",
-  association: "Association",
-  co_location: "Co-location",
-  vehicle_ownership: "Vehicle Ownership",
-  family: "Family",
-  business: "Business",
-};
+export const RELATIONSHIP_TYPE_LABEL = labelMap<Relationship["type"]>("rtype");
 
 export const RELATIONSHIP_TYPE_COLOR: Record<Relationship["type"], string> = {
   call: "#22d3ee",
@@ -213,6 +201,108 @@ export function findShortestPath(sourceId: string, targetId: string, rels: Relat
     }
   }
   return null;
+}
+
+/**
+ * Findings worked out from the graph itself: entities shared by several cases, the most connected node in each
+ * case, people who left the jurisdiction, and very large financial instruments. Nothing here is typed in by hand.
+ */
+export function computeAlerts(): AIAlert[] {
+  const out: AIAlert[] = [];
+  const now = new Date().toISOString();
+
+  for (const e of allEntities) {
+    if (e.caseIds.length < 2) continue;
+    const titles = e.caseIds.map((id) => getCase(id)?.title ?? id);
+    out.push({
+      id: `al-bridge-${e.id}`,
+      caseId: e.caseIds[0],
+      category: "network_structure_anomaly",
+      severity: "high",
+      title: tr("alert.bridge.title", { name: e.name }),
+      description: tr("alert.bridge.desc", { name: e.name, n: titles.length, cases: titles.join("; ") }),
+      confidence: 97,
+      timestamp: now,
+      entityIds: [e.id],
+      reviewed: false,
+    });
+  }
+
+  for (const c of cases) {
+    const members = getEntitiesForCase(c.id).filter((e) => e.type === "person" || e.type === "organization");
+    const rows = computeCentrality(members.map((e) => e.id), getRelationshipsForCase(c.id));
+    const top = rows[0];
+    if (!top || top.degree < 3) continue;
+    out.push({
+      id: `al-broker-${c.id}`,
+      caseId: c.id,
+      category: "network_structure_anomaly",
+      severity: top.degree >= 8 ? "high" : "medium",
+      title: tr("alert.broker.title", { name: top.entity.name }),
+      description: tr("alert.broker.desc", { name: top.entity.name, links: top.degree, paths: top.betweenness, case: c.title }),
+      confidence: 88,
+      timestamp: now,
+      entityIds: [top.entity.id],
+      reviewed: false,
+    });
+  }
+
+  for (const e of allEntities) {
+    if (e.type !== "person") continue;
+    const flag = e.riskFactors?.find((f) => /left india|fugitive|absconded|evaded/i.test(f.label));
+    if (!flag) continue;
+    out.push({
+      id: `al-flight-${e.id}`,
+      caseId: e.caseIds[0],
+      category: "movement_anomaly",
+      severity: flag.points >= 20 ? "critical" : "high",
+      title: tr("alert.flight.title", { name: e.name }),
+      description: tr("alert.flight.desc", { label: flag.label, detail: flag.detail, status: e.legalStatus ?? tr("alert.flight.unrecorded") }),
+      confidence: 92,
+      timestamp: now,
+      entityIds: [e.id],
+      reviewed: false,
+    });
+  }
+
+  for (const e of allEntities) {
+    if (e.type !== "financial_account" || e.balanceEstimate < 1_000_000_000) continue;
+    out.push({
+      id: `al-money-${e.id}`,
+      caseId: e.caseIds[0],
+      category: "financial_anomaly",
+      severity: "critical",
+      title: tr("alert.money.title", { name: e.name }),
+      description: tr("alert.money.desc", { crore: Math.round(e.balanceEstimate / 10_000_000).toLocaleString("en-IN"), summary: e.summary }),
+      confidence: 95,
+      timestamp: now,
+      entityIds: [e.id],
+      reviewed: false,
+    });
+  }
+
+  for (const e of allEntities) {
+    if (e.type !== "person" || !/acquitted/i.test(e.legalStatus ?? "") || !/appeal/i.test(e.legalStatus ?? "")) continue;
+    out.push({
+      id: `al-court-${e.id}`,
+      caseId: e.caseIds[0],
+      category: "network_structure_anomaly",
+      severity: "medium",
+      title: tr("alert.court.title", { name: e.name }),
+      description: tr("alert.court.desc", { name: e.name }),
+      confidence: 90,
+      timestamp: now,
+      entityIds: [e.id],
+      reviewed: false,
+    });
+  }
+
+  return out;
+}
+
+export function refreshAlerts(): void {
+  alerts.length = 0;
+  alerts.push(...computeAlerts());
 }
 
 export function riskLevelFromScore(score: number): RiskLevel {

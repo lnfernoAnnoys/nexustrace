@@ -1,15 +1,17 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Download, ExternalLink, FileText } from "lucide-react";
+import { AlertTriangle, ArrowRight, Ban, Download, ExternalLink, FileText, ShieldCheck, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { LevelBadge } from "@/components/shared/LevelPips";
 import { ACCESS_LEVELS, formatBytes, levelTone, type RequestFile } from "@/lib/access";
 import { cn, formatDateTime } from "@/lib/utils";
 import { adminApi, errorText, fileUrl } from "./adminApi";
-import type { AdminUser, AuditEntry } from "./types";
+import type { AccountStatus, AdminUser, AuditEntry } from "./types";
 
 export const when = (ms: number) => formatDateTime(new Date(ms).toISOString());
 
@@ -160,15 +162,22 @@ export function ChangeLevelDialog({
 }
 
 /** The identity documents attached to a request: images are previewed, PDFs are opened or downloaded. */
-export function DocumentGrid({ requestId, files }: { requestId: number; files: RequestFile[] }) {
+export function DocumentGrid({
+  files,
+  urlFor = (fileId, download) => fileUrl(0, fileId, download),
+}: {
+  files: RequestFile[];
+  /** Builds the URL for one file. Defaults to an access-request's own file route; sign-up documents pass their own. */
+  urlFor?: (fileId: number, download?: boolean) => string;
+}) {
   if (files.length === 0) return <p className="text-xs text-text-muted">No documents attached.</p>;
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {files.map((f) => (
         <div key={f.id} className="overflow-hidden rounded-md border border-border bg-panel-hover/30">
           {f.type.startsWith("image/") ? (
-            <a href={fileUrl(requestId, f.id)} target="_blank" rel="noreferrer" title="Open full size">
-              <img src={fileUrl(requestId, f.id)} alt={f.name} className="h-44 w-full bg-black/30 object-contain" />
+            <a href={urlFor(f.id)} target="_blank" rel="noreferrer" title="Open full size">
+              <img src={urlFor(f.id)} alt={f.name} className="h-44 w-full bg-black/30 object-contain" />
             </a>
           ) : (
             <div className="flex h-44 items-center justify-center bg-black/20">
@@ -185,7 +194,7 @@ export function DocumentGrid({ requestId, files }: { requestId: number; files: R
               </p>
             </div>
             <a
-              href={fileUrl(requestId, f.id)}
+              href={urlFor(f.id)}
               target="_blank"
               rel="noreferrer"
               className="text-text-muted hover:text-cyan-300"
@@ -195,7 +204,7 @@ export function DocumentGrid({ requestId, files }: { requestId: number; files: R
               <ExternalLink size={14} />
             </a>
             <a
-              href={fileUrl(requestId, f.id, true)}
+              href={urlFor(f.id, true)}
               className="text-text-muted hover:text-cyan-300"
               title="Download"
               aria-label={`Download ${f.name}`}
@@ -211,7 +220,7 @@ export function DocumentGrid({ requestId, files }: { requestId: number; files: R
 
 /** One line describing an audit-log entry. */
 export function describeAudit(e: AuditEntry): ReactNode {
-  const d = e.detail as { from?: number; to?: number; requested?: number; requestId?: number };
+  const d = e.detail as { from?: number; to?: number; requested?: number; requestId?: number; username?: string };
   const person = e.targetId ? (
     <Link to={`/accounts/${e.targetId}`} className="text-cyan-300 hover:text-cyan-200">
       {e.targetName}
@@ -247,5 +256,239 @@ export function describeAudit(e: AuditEntry): ReactNode {
           Changed {person} from {String(d.from)} to {String(d.to)}
         </>
       );
+    case "signup_approved":
+      return <>Approved {person}'s sign-up</>;
+    case "signup_denied":
+      return <>Denied {person}'s sign-up</>;
+    case "account_banned":
+      return <>Banned {person}</>;
+    case "account_unbanned":
+      return <>Lifted the ban on {person}</>;
+    case "account_deleted":
+      return <>Deleted the account {String(d.username ?? e.targetName)}</>;
+    case "identity_changed":
+      return <>Edited {person}'s profile</>;
   }
+}
+
+const STATUS_BADGE: Record<AccountStatus, { label: string; variant: "green" | "amber" | "red" }> = {
+  active: { label: "Active", variant: "green" },
+  pending_approval: { label: "Pending approval", variant: "amber" },
+  banned: { label: "Banned", variant: "red" },
+};
+
+export function StatusBadge({ status }: { status: AccountStatus }) {
+  const s = STATUS_BADGE[status];
+  return <Badge variant={s.variant}>{s.label}</Badge>;
+}
+
+/** Suspends or lifts a suspension. Suspending ends every session the account currently holds. */
+export function BanDialog({
+  user,
+  onClose,
+  onChanged,
+}: {
+  user: AdminUser;
+  onClose: () => void;
+  onChanged: (user: AdminUser) => void;
+}) {
+  const banning = user.status !== "banned";
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const res = await adminApi<{ user: AdminUser }>(`/users/${user.id}/${banning ? "ban" : "unban"}`, {
+        method: "POST",
+        body: banning ? { reason } : undefined,
+      });
+      onChanged(res.user);
+    } catch (err) {
+      setError(errorText(err));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{banning ? "Suspend" : "Lift suspension on"} {user.name}</DialogTitle>
+          <DialogDescription>
+            {banning
+              ? "They will be signed out everywhere and can't sign in again until you lift this. Nothing of theirs is deleted."
+              : "They will be able to sign in again."}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="flex flex-col gap-3">
+          {banning && (
+            <div>
+              <Label className="mb-1.5 block">Reason (kept in the audit log)</Label>
+              <Textarea value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} rows={3} autoFocus placeholder="e.g. Left the department" />
+            </div>
+          )}
+          {error && (
+            <p role="alert" className="text-xs text-red">
+              {error}
+            </p>
+          )}
+          <DialogFooter className="mt-1">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" variant={banning ? "destructive" : "default"} disabled={busy || (banning && reason.trim().length < 3)}>
+              {banning ? <Ban size={14} /> : <ShieldCheck size={14} />} {busy ? "Working…" : banning ? "Suspend account" : "Lift suspension"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Permanently removes an account and everything tied to it. They could sign up again afterwards. */
+export function DeleteAccountDialog({
+  user,
+  onClose,
+  onDeleted,
+}: {
+  user: AdminUser;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const [confirmText, setConfirmText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await adminApi(`/users/${user.id}`, { method: "DELETE" });
+      onDeleted();
+    } catch (err) {
+      setError(errorText(err));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-1.5 text-red">
+            <AlertTriangle size={16} /> Delete {user.name}'s account
+          </DialogTitle>
+          <DialogDescription>
+            This permanently removes their profile, sessions, backup codes and access requests. This can't be undone —
+            though they could sign up again afterwards with the same details.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="flex flex-col gap-3">
+          <div>
+            <Label className="mb-1.5 block">
+              Type <span className="mono text-text">{user.username}</span> to confirm
+            </Label>
+            <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} autoFocus autoComplete="off" />
+          </div>
+          {error && (
+            <p role="alert" className="text-xs text-red">
+              {error}
+            </p>
+          )}
+          <DialogFooter className="mt-1">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="destructive" disabled={busy || confirmText !== user.username}>
+              <Trash2 size={14} /> {busy ? "Deleting…" : "Delete permanently"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** An administrator correcting someone's name, badge, department or position. */
+export function EditIdentityDialog({
+  user,
+  onClose,
+  onChanged,
+}: {
+  user: AdminUser;
+  onClose: () => void;
+  onChanged: (user: AdminUser) => void;
+}) {
+  const [name, setName] = useState(user.name);
+  const [badge, setBadge] = useState(user.badge);
+  const [department, setDepartment] = useState(user.department);
+  const [position, setPosition] = useState(user.position);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const res = await adminApi<{ user: AdminUser }>(`/users/${user.id}/identity`, {
+        method: "PATCH",
+        body: { name, badge, department, position },
+      });
+      onChanged(res.user);
+    } catch (err) {
+      setError(errorText(err));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit {user.name}'s profile</DialogTitle>
+          <DialogDescription>Their email and password stay theirs to change, in their own Settings.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="flex flex-col gap-3">
+          <div>
+            <Label className="mb-1.5 block">Full name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="mb-1.5 block">Badge / ID</Label>
+              <Input value={badge} onChange={(e) => setBadge(e.target.value)} />
+            </div>
+            <div>
+              <Label className="mb-1.5 block">Department</Label>
+              <Input value={department} onChange={(e) => setDepartment(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <Label className="mb-1.5 block">Position / rank</Label>
+            <Input value={position} onChange={(e) => setPosition(e.target.value)} />
+          </div>
+          {error && (
+            <p role="alert" className="text-xs text-red">
+              {error}
+            </p>
+          )}
+          <DialogFooter className="mt-1">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={busy || !name.trim()}>
+              {busy ? "Saving…" : "Save changes"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
 }

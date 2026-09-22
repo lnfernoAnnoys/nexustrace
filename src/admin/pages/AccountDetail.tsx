@@ -1,11 +1,21 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Paperclip, ShieldCheck, ShieldOff } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, ArrowRight, Ban, PencilLine, Paperclip, ShieldCheck, ShieldOff, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LevelPips, RequestStatusBadge } from "@/components/shared/LevelPips";
-import { ChangeLevelDialog, Initials, LevelPicker, describeAudit, when } from "../components";
+import {
+  BanDialog,
+  ChangeLevelDialog,
+  DeleteAccountDialog,
+  EditIdentityDialog,
+  Initials,
+  LevelPicker,
+  StatusBadge,
+  describeAudit,
+  when,
+} from "../components";
 import { useAdminData } from "../useAdminData";
 import type { AdminRequest, AdminUser, AuditEntry } from "../types";
 
@@ -17,10 +27,12 @@ interface AccountData {
 
 export default function AccountDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { data, error, reload } = useAdminData<AccountData>(`/users/${id}`);
   // no pick yet (or a pick made on another account) -> the picker shows the account's real level
   const [picked, setPicked] = useState<{ userId: number; level: number } | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [dialog, setDialog] = useState<"ban" | "delete" | "edit" | null>(null);
 
   const back = (
     <Link to="/accounts" className="mb-4 flex w-fit items-center gap-1 text-xs text-text-muted hover:text-text">
@@ -50,18 +62,26 @@ export default function AccountDetail() {
             <div className="flex items-center gap-3">
               <Initials name={user.name} className="size-12 text-sm" />
               <div className="min-w-0">
-                <p className="flex items-center gap-2 text-base font-semibold text-text">
+                <p className="flex flex-wrap items-center gap-2 text-base font-semibold text-text">
                   {user.name}
                   {user.role === "admin" && <Badge variant="purple">Admin</Badge>}
+                  <StatusBadge status={user.status} />
                 </p>
                 <p className="truncate text-xs text-text-muted">{user.username}</p>
               </div>
             </div>
+            {user.status === "banned" && user.banReason && (
+              <p className="rounded-md border border-red/30 bg-red/10 px-2.5 py-2 text-[11px] text-red">
+                Suspended: {user.banReason}
+              </p>
+            )}
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-xs">
               <dt className="text-text-muted">Badge</dt>
               <dd className="text-text">{user.badge || "—"}</dd>
               <dt className="text-text-muted">Department</dt>
               <dd className="text-text">{user.department || "—"}</dd>
+              <dt className="text-text-muted">Position</dt>
+              <dd className="text-text">{user.position || "—"}</dd>
               <dt className="text-text-muted">Email</dt>
               <dd className="truncate text-text">{user.email || "—"}</dd>
               <dt className="text-text-muted">Two-factor</dt>
@@ -79,6 +99,18 @@ export default function AccountDetail() {
               <dt className="text-text-muted">Joined</dt>
               <dd className="text-text">{when(user.createdAt)}</dd>
             </dl>
+            <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+              <Button size="sm" variant="outline" onClick={() => setDialog("edit")}>
+                <PencilLine size={13} /> Edit profile
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setDialog("ban")}>
+                {user.status === "banned" ? <ShieldCheck size={13} /> : <Ban size={13} />}
+                {user.status === "banned" ? "Lift suspension" : "Suspend"}
+              </Button>
+              <Button size="sm" variant="destructive" onClick={() => setDialog("delete")}>
+                <Trash2 size={13} /> Delete
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -170,6 +202,29 @@ export default function AccountDetail() {
             reload();
           }}
         />
+      )}
+      {dialog === "ban" && (
+        <BanDialog
+          user={user}
+          onClose={() => setDialog(null)}
+          onChanged={() => {
+            setDialog(null);
+            reload();
+          }}
+        />
+      )}
+      {dialog === "edit" && (
+        <EditIdentityDialog
+          user={user}
+          onClose={() => setDialog(null)}
+          onChanged={() => {
+            setDialog(null);
+            reload();
+          }}
+        />
+      )}
+      {dialog === "delete" && (
+        <DeleteAccountDialog user={user} onClose={() => setDialog(null)} onDeleted={() => navigate("/accounts")} />
       )}
     </>
   );

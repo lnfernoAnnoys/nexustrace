@@ -6,7 +6,8 @@ import helmet from "helmet";
 import multer from "multer";
 import { ZodError } from "zod";
 import { DIST_DIR, HOST, IS_PROD, MAX_UPLOAD_BYTES, MAX_UPLOAD_FILES, PORT } from "./config.ts";
-import { loadSession, noStore, originGuard } from "./middleware.ts";
+import { checkDataset, dataset } from "./dataset/index.ts";
+import { loadSession, noStore, originGuard, requireStage } from "./middleware.ts";
 import { accessRouter } from "./routes/access.ts";
 import { adminRouter } from "./routes/admin.ts";
 import { createAuthRouter } from "./routes/auth.ts";
@@ -17,7 +18,18 @@ const app = express();
 app.disable("x-powered-by");
 // Honour X-Forwarded-* only when the request comes from this machine (the Vite dev proxy).
 app.set("trust proxy", "loopback");
-app.use(helmet());
+// The case pages show openly licensed photos from Wikimedia Commons, so images may also load from there.
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        // Commons "Special:FilePath" links redirect to upload.wikimedia.org (full size) or thumb.wikimedia.org (resized)
+        "img-src": ["'self'", "data:", "https://upload.wikimedia.org", "https://thumb.wikimedia.org", "https://commons.wikimedia.org"],
+      },
+    },
+  }),
+);
 
 app.use("/api", noStore, originGuard, express.json({ limit: "50kb" }), cookieParser());
 app.get("/api/health", (_req, res) => {
@@ -26,6 +38,10 @@ app.get("/api/health", (_req, res) => {
 // Two separate sign-ins: the investigator site (/api/auth, /api/access) and the admin console (/api/admin).
 app.use("/api/auth", loadSession("user"), createAuthRouter("user"));
 app.use("/api/access", loadSession("user"), accessRouter);
+// The case data is only sent to signed-in users; it is not part of the public website files.
+app.get("/api/dataset", loadSession("user"), requireStage("full"), (_req, res) => {
+  res.json(dataset);
+});
 app.use("/api/admin/auth", loadSession("admin"), createAuthRouter("admin"));
 app.use("/api/admin", loadSession("admin"), adminRouter);
 app.use("/api", (_req, res) => {
@@ -85,6 +101,7 @@ async function seedDemoUser(): Promise<void> {
   console.log("[auth] You will be asked to set up an authenticator app on first sign-in.");
 }
 
+for (const problem of checkDataset()) console.warn(`[dataset] ${problem}`);
 await seedDemoUser();
 purgeExpiredSessions();
 setInterval(purgeExpiredSessions, 10 * 60 * 1000).unref();

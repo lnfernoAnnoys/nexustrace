@@ -19,6 +19,7 @@ import {
   RELATIONSHIP_TYPE_LABEL,
 } from "@/data";
 import { formatDate } from "@/lib/utils";
+import { tr, trn } from "@/i18n";
 import {
   ResponsiveContainer,
   PieChart,
@@ -54,7 +55,7 @@ export default function Dashboard() {
   const statusData = useMemo(
     () =>
       ["active", "under_review", "closed"].map((s) => ({
-        name: s.replace("_", " "),
+        name: tr(`status.${s}` as "status.active"),
         value: cases.filter((c) => c.status === s).length,
         key: s,
       })),
@@ -73,30 +74,30 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="text-lg font-semibold text-text">Command Center</h1>
-        <p className="text-xs text-text-secondary">Operational overview across all active investigations</p>
+        <h1 className="text-lg font-semibold text-text">{tr("nav.commandCenter")}</h1>
+        <p className="text-xs text-text-secondary">{tr("dash.subtitle")}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Active Cases" value={activeCases} icon={FolderLock} accent="cyan" trend={`${cases.length} total on file`} />
-        <StatCard label="Entities Tracked" value={allEntities.length} icon={Users} accent="cyan" trend="Across all cases" />
-        <StatCard label="Flagged Patterns" value={alerts.length} icon={ShieldAlert} accent="red" trend={`${unreviewedAlerts.length} awaiting review`} />
-        <StatCard label="High-Risk Individuals" value={highRisk} icon={TrendingUp} accent="amber" trend="High or critical risk score" />
+        <StatCard label={tr("dash.stat.active")} value={activeCases} icon={FolderLock} accent="cyan" trend={tr("dash.stat.total", { n: cases.length })} />
+        <StatCard label={tr("dash.stat.entities")} value={allEntities.length} icon={Users} accent="cyan" trend={tr("dash.stat.entitiesTrend")} />
+        <StatCard label={tr("dash.stat.patterns")} value={alerts.length} icon={ShieldAlert} accent="red" trend={tr("dash.stat.review", { n: unreviewedAlerts.length })} />
+        <StatCard label={tr("dash.stat.highRisk")} value={highRisk} icon={TrendingUp} accent="amber" trend={tr("dash.stat.highRiskTrend")} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader>
             <SectionHeader
-              title="Recent Cases"
-              description="Most recently updated investigations"
-              action={<Button size="sm" variant="ghost" onClick={() => navigate("/cases")}>View all <ChevronRight size={13} /></Button>}
+              title={tr("dash.recent")}
+              description={tr("dash.recentDesc")}
+              action={<Button size="sm" variant="ghost" onClick={() => navigate("/cases")}>{tr("common.viewAll")} <ChevronRight size={13} /></Button>}
             />
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             {cases
               .slice()
-              .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+              .sort((a, b) => (b.year ?? 0) - (a.year ?? 0) || b.updatedAt.localeCompare(a.updatedAt))
               .map((c) => (
                 <button
                   key={c.id}
@@ -107,14 +108,14 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2">
                       <span className="mono text-[10px] text-text-muted">{c.id}</span>
                       <Badge variant={c.status === "active" ? "cyan" : c.status === "under_review" ? "amber" : "green"}>
-                        {c.status.replace("_", " ")}
+                        {tr(`status.${c.status}`)}
                       </Badge>
                       <Badge variant={c.priority === "critical" ? "red" : c.priority === "high" ? "orange" : "outline"}>
-                        {c.priority}
+                        {tr(`prio.${c.priority}`)}
                       </Badge>
                     </div>
                     <p className="mt-1 truncate text-sm font-medium text-text">{c.title}</p>
-                    <p className="text-[11px] text-text-muted">{c.entityIds.length} entities linked · updated {formatDate(c.updatedAt)}</p>
+                    <p className="text-[11px] text-text-muted">{trn("dash.linked", c.entityIds.length)}{c.year ? ` · ${tr("dash.cameToLight", { year: c.year })}` : ` · ${tr("dash.updated", { date: formatDate(c.updatedAt) })}`}</p>
                   </div>
                   <ChevronRight size={16} className="shrink-0 text-text-muted" />
                 </button>
@@ -124,7 +125,7 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Key Individuals</CardTitle>
+            <CardTitle>{tr("dash.keyIndividuals")}</CardTitle>
           </CardHeader>
           <CardContent>
             <KeyPlayersPanel rows={centrality} activeId={selectedNode} onSelect={(id) => navigate(`/entities/person/${id}`)} />
@@ -135,7 +136,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader>
-            <SectionHeader title="AI Alert Feed" description="Recently detected suspicious patterns across all cases" />
+            <SectionHeader title={tr("dash.feed")} description={tr("dash.feedDesc")} />
           </CardHeader>
           <CardContent className="flex flex-col gap-2.5">
             {alerts
@@ -150,7 +151,7 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Cases by Status</CardTitle>
+            <CardTitle>{tr("dash.byStatus")}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={160}>
@@ -168,7 +169,7 @@ export default function Dashboard() {
             </ResponsiveContainer>
             <div className="mt-2 flex flex-wrap justify-center gap-3 text-[11px] text-text-secondary">
               {statusData.map((d) => (
-                <span key={d.key} className="flex items-center gap-1.5 capitalize">
+                <span key={d.key} className="flex items-center gap-1.5">
                   <span className="size-2 rounded-full" style={{ backgroundColor: STATUS_COLORS[d.key] }} />
                   {d.name} ({d.value})
                 </span>
@@ -182,9 +183,9 @@ export default function Dashboard() {
         <Card className="xl:col-span-2">
           <CardHeader>
             <SectionHeader
-              title="Network Snapshot"
-              description="Cross-case relationship graph — all active investigations"
-              action={<Button size="sm" variant="outline" onClick={() => navigate("/network")}>Open Network Explorer <Share2 size={13} /></Button>}
+              title={tr("dash.snapshot")}
+              description={tr("dash.snapshotDesc")}
+              action={<Button size="sm" variant="outline" onClick={() => navigate("/network")}>{tr("dash.openNetwork")} <Share2 size={13} /></Button>}
             />
           </CardHeader>
           <CardContent className="h-[320px] p-0">
@@ -200,7 +201,7 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Relationship Types</CardTitle>
+            <CardTitle>{tr("dash.relTypes")}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>

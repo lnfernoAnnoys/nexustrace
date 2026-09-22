@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
-import { ACCESS_LEVELS, levelTone, type RequestStatus, STATUS_LABEL } from "@/lib/access";
+import { ACCESS_LEVELS, levelTone, type RequestStatus } from "@/lib/access";
+import { tr } from "@/i18n/core";
 import { cn } from "@/lib/utils";
 
 const FILLED = { blue: "bg-blue", cyan: "bg-cyan", amber: "bg-amber", red: "bg-red" } as const;
@@ -7,7 +8,7 @@ const FILLED = { blue: "bg-blue", cyan: "bg-cyan", amber: "bg-amber", red: "bg-r
 /** Eight small bars, filled up to the given level. */
 export function LevelPips({ level, className }: { level: number; className?: string }) {
   return (
-    <span className={cn("inline-flex items-end gap-0.5", className)} role="img" aria-label={`Level ${level} of ${ACCESS_LEVELS.length}`}>
+    <span className={cn("inline-flex items-end gap-0.5", className)} role="img" aria-label={tr("acc.levelOfAria", { n: level, max: ACCESS_LEVELS.length })}>
       {ACCESS_LEVELS.map((n) => (
         <span
           key={n}
@@ -22,7 +23,7 @@ export function LevelPips({ level, className }: { level: number; className?: str
 export function LevelBadge({ level, className }: { level: number; className?: string }) {
   return (
     <Badge variant={levelTone(level)} className={cn("mono", className)}>
-      Level {level}
+      {tr("acc.level", { n: level })}
     </Badge>
   );
 }
@@ -30,5 +31,5 @@ export function LevelBadge({ level, className }: { level: number; className?: st
 const STATUS_VARIANT = { pending: "amber", approved: "green", denied: "red", cancelled: "default" } as const;
 
 export function RequestStatusBadge({ status }: { status: RequestStatus }) {
-  return <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>;
+  return <Badge variant={STATUS_VARIANT[status]}>{tr(`acc.status.${status}`)}</Badge>;
 }

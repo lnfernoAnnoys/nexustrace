@@ -1,7 +1,17 @@
 import { db } from "./db.ts";
 import type { UserRow } from "./users.ts";
 
-export type AuditAction = "level_changed" | "request_approved" | "request_denied" | "role_changed";
+export type AuditAction =
+  | "level_changed"
+  | "request_approved"
+  | "request_denied"
+  | "role_changed"
+  | "signup_approved"
+  | "signup_denied"
+  | "account_banned"
+  | "account_unbanned"
+  | "account_deleted"
+  | "identity_changed";
 
 interface AuditRow {
   id: number;

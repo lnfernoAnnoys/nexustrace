@@ -25,3 +25,8 @@ export function errorText(err: unknown): string {
 export function fileUrl(requestId: number, fileId: number, download = false): string {
   return `/api/admin/requests/${requestId}/files/${fileId}${download ? "?download=1" : ""}`;
 }
+
+/** Path of a document attached at sign-up, before the account had a request of its own. */
+export function signupFileUrl(userId: number, fileId: number, download = false): string {
+  return `/api/admin/pending-signups/${userId}/files/${fileId}${download ? "?download=1" : ""}`;
+}

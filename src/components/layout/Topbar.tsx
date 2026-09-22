@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Search, Bell, CheckCheck } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { CommandPalette } from "./CommandPalette";
 import { alerts, getCase } from "@/data";
 import { timeAgo, cn } from "@/lib/utils";
+import { tr } from "@/i18n";
 
 const READ_STORAGE_KEY = "nexustrace.readAlertIds";
 const MAX_SHOWN = 8;
@@ -72,13 +73,13 @@ export function Topbar() {
           className="flex h-8 w-full max-w-sm items-center gap-2 rounded-md border border-border bg-panel px-3 text-xs text-text-muted transition-colors hover:border-border-strong hover:text-text-secondary"
         >
           <Search size={13} />
-          <span className="flex-1 text-left">Search entities, phones, cases…</span>
+          <span className="flex-1 text-left">{tr("top.search")}</span>
           <kbd className="mono rounded border border-border-strong bg-panel-hover px-1.5 py-0.5 text-[10px]">⌘K</kbd>
         </button>
 
         {activeCase && (
           <div className="flex items-center gap-2 text-xs text-text-secondary">
-            <span className="text-text-muted">Case</span>
+            <span className="text-text-muted">{tr("top.case")}</span>
             <span className="mono text-cyan-300">{activeCase.id}</span>
             <span className="max-w-[220px] truncate text-text">{activeCase.title}</span>
           </div>
@@ -90,7 +91,7 @@ export function Topbar() {
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-green opacity-60" />
               <span className="relative inline-flex size-1.5 rounded-full bg-green" />
             </span>
-            Live · Secure Channel
+            {tr("top.live")}
           </div>
 
           <Popover open={notifOpen} onOpenChange={handleNotifOpenChange}>
@@ -106,13 +107,13 @@ export function Topbar() {
             </PopoverTrigger>
             <PopoverContent align="end" className="w-80 p-0">
               <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
-                <span className="text-xs font-semibold text-text">AI Alerts</span>
+                <span className="text-xs font-semibold text-text">{tr("top.alerts")}</span>
                 <button
                   onClick={markAllRead}
                   disabled={unreadCount === 0}
                   className="flex items-center gap-1 text-[11px] text-cyan-300 transition-colors hover:text-cyan-200 disabled:pointer-events-none disabled:text-text-muted"
                 >
-                  <CheckCheck size={12} /> Mark all as read
+                  <CheckCheck size={12} /> {tr("top.markAllRead")}
                 </button>
               </div>
               <div className="max-h-80 overflow-y-auto">
@@ -133,7 +134,7 @@ export function Topbar() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           <Badge variant={a.severity === "critical" ? "red" : a.severity === "high" ? "orange" : "amber"}>
-                            {a.severity}
+                            {tr(`prio.${a.severity}`)}
                           </Badge>
                           <span className="text-[10px] text-text-muted">{timeAgo(a.timestamp)}</span>
                         </div>
@@ -143,7 +144,7 @@ export function Topbar() {
                   );
                 })}
                 {shown.length === 0 && (
-                  <p className="px-3 py-6 text-center text-xs text-text-muted">No alerts yet.</p>
+                  <p className="px-3 py-6 text-center text-xs text-text-muted">{tr("top.noAlerts")}</p>
                 )}
               </div>
             </PopoverContent>

@@ -9,11 +9,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { LevelBadge, LevelPips } from "@/components/shared/LevelPips";
 import { ACCESS_LEVELS } from "@/lib/access";
 import { formatDate } from "@/lib/utils";
-import { ChangeLevelDialog, Initials, PageHeader } from "../components";
+import { ChangeLevelDialog, Initials, PageHeader, StatusBadge } from "../components";
 import { useAdminData } from "../useAdminData";
 import type { AdminUser } from "../types";
 
-type Show = "all" | "waiting" | "admins";
+type Show = "all" | "waiting" | "admins" | "banned";
 
 export default function Accounts() {
   const { data, error, reload } = useAdminData<{ users: AdminUser[] }>("/users");
@@ -28,6 +28,7 @@ export default function Accounts() {
       if (level !== "all" && u.accessLevel !== Number(level)) return false;
       if (show === "waiting" && !u.pendingRequest) return false;
       if (show === "admins" && u.role !== "admin") return false;
+      if (show === "banned" && u.status !== "banned") return false;
       return !q || [u.name, u.username, u.badge, u.department, u.email].some((v) => v.toLowerCase().includes(q));
     });
   }, [data, search, level, show]);
@@ -68,6 +69,7 @@ export default function Accounts() {
             <SelectItem value="all">All accounts</SelectItem>
             <SelectItem value="waiting">Request waiting</SelectItem>
             <SelectItem value="admins">Administrators</SelectItem>
+            <SelectItem value="banned">Suspended</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -81,6 +83,7 @@ export default function Accounts() {
               <TableRow className="hover:bg-transparent">
                 <TableHead>Account</TableHead>
                 <TableHead>Badge · Department</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Access level</TableHead>
                 <TableHead>2FA</TableHead>
                 <TableHead>Request</TableHead>
@@ -104,6 +107,9 @@ export default function Accounts() {
                   </TableCell>
                   <TableCell className="text-text-secondary">
                     {[u.badge, u.department].filter(Boolean).join(" · ") || <span className="text-text-muted">—</span>}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={u.status} />
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2.5">
@@ -143,7 +149,7 @@ export default function Accounts() {
               ))}
               {rows.length === 0 && (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={6} className="py-10 text-center text-text-muted">
+                  <TableCell colSpan={7} className="py-10 text-center text-text-muted">
                     No accounts match.
                   </TableCell>
                 </TableRow>

@@ -9,6 +9,7 @@ import NetworkExplorer from "@/pages/NetworkExplorer";
 import EntitiesRegistry from "@/pages/EntitiesRegistry";
 import EntityProfile from "@/pages/EntityProfile";
 import AIInsights from "@/pages/AIInsights";
+import SocialIntelligence from "@/pages/SocialIntelligence";
 import EvidenceIntake from "@/pages/EvidenceIntake";
 import Reports from "@/pages/Reports";
 import Settings from "@/pages/Settings";
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/entities/:type" element={<EntitiesRegistry />} />
         <Route path="/entities/:type/:id" element={<EntityProfile />} />
         <Route path="/ai-insights" element={<AIInsights />} />
+        <Route path="/social" element={<SocialIntelligence />} />
         <Route path="/evidence" element={<EvidenceIntake />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />

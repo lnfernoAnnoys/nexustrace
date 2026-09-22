@@ -6,6 +6,7 @@ import Accounts from "./pages/Accounts";
 import AdminLogin from "./pages/AdminLogin";
 import AuditLog from "./pages/AuditLog";
 import Overview from "./pages/Overview";
+import PendingAccounts from "./pages/PendingAccounts";
 import RequestDetail from "./pages/RequestDetail";
 import Requests from "./pages/Requests";
 
@@ -23,6 +24,7 @@ export default function AdminApp() {
         <Route index element={<Overview />} />
         <Route path="accounts" element={<Accounts />} />
         <Route path="accounts/:id" element={<AccountDetail />} />
+        <Route path="pending" element={<PendingAccounts />} />
         <Route path="requests" element={<Requests />} />
         <Route path="requests/:id" element={<RequestDetail />} />
         <Route path="audit" element={<AuditLog />} />

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Check, Copy, Download } from "lucide-react";
+import { tr } from "@/i18n";
 import { Button } from "@/components/ui/button";
 
 export function BackupCodes({ codes }: { codes: string[] }) {
@@ -36,10 +37,10 @@ export function BackupCodes({ codes }: { codes: string[] }) {
       </div>
       <div className="mt-2 flex gap-2">
         <Button type="button" size="sm" variant="outline" className="flex-1" onClick={copy}>
-          {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? "Copied" : "Copy"}
+          {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? tr("common.copied") : tr("common.copy")}
         </Button>
         <Button type="button" size="sm" variant="outline" className="flex-1" onClick={download}>
-          <Download size={13} /> Download
+          <Download size={13} /> {tr("common.download")}
         </Button>
       </div>
     </div>

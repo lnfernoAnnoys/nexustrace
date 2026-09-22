@@ -17,6 +17,7 @@ import {
   Search,
   Printer,
   CheckCircle2,
+  ExternalLink,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +36,7 @@ import { GraphLegend } from "@/components/graph/GraphLegend";
 import { NodeDetailPanel } from "@/components/graph/NodeDetailPanel";
 import { KeyPlayersPanel } from "@/components/graph/KeyPlayersPanel";
 import { AIExtractionModal } from "@/components/evidence/AIExtractionModal";
+import { useDataVersion } from "@/data/store";
 import {
   getCase,
   getEntitiesForCase,
@@ -49,6 +51,7 @@ import {
 } from "@/data";
 import type { EntityType, EvidenceDocument, Relationship, EventType } from "@/types";
 import { cn, formatDate, formatDateTime } from "@/lib/utils";
+import { tr, trn } from "@/i18n";
 
 const EVENT_ICON: Record<EventType, typeof Phone> = {
   call: Phone,
@@ -58,16 +61,6 @@ const EVENT_ICON: Record<EventType, typeof Phone> = {
   arrest: Siren,
   filing: FileText,
   surveillance: Video,
-};
-
-const EVIDENCE_TYPE_LABEL: Record<EvidenceDocument["type"], string> = {
-  fir: "FIR / Police Report",
-  cdr: "Call Detail Record",
-  financial_record: "Financial Record",
-  surveillance_report: "Surveillance Report",
-  social_media: "Social Media Intelligence",
-  criminal_history: "Criminal History",
-  intelligence_report: "Intelligence Report",
 };
 
 function pathToEdgeIds(path: string[], rels: Relationship[]): Set<string> {
@@ -83,9 +76,9 @@ function pathToEdgeIds(path: string[], rels: Relationship[]): Set<string> {
 
 export default function CaseWorkspace() {
   const { caseId = "" } = useParams();
+  const version = useDataVersion();
   const caseRecord = getCase(caseId);
 
-  const [extraRelationships, setExtraRelationships] = useState<Relationship[]>([]);
   const [selectedEvidence, setSelectedEvidence] = useState<EvidenceDocument | null>(null);
   const [alertOverrides, setAlertOverrides] = useState<Record<string, boolean>>({});
   const [entityTypeFilter, setEntityTypeFilter] = useState<EntityType | "all">("all");
@@ -100,15 +93,14 @@ export default function CaseWorkspace() {
   const [connectionPick, setConnectionPick] = useState<string[]>([]);
   const [pathResult, setPathResult] = useState<string[] | null | undefined>(undefined);
 
-  const caseEntities = useMemo(() => (caseRecord ? getEntitiesForCase(caseRecord.id) : []), [caseRecord]);
-  const baseRelationships = useMemo(() => (caseRecord ? getRelationshipsForCase(caseRecord.id) : []), [caseRecord]);
-  const relationships = useMemo(
-    () => [...baseRelationships, ...extraRelationships.filter((r) => r.caseId === caseId)],
-    [baseRelationships, extraRelationships, caseId],
-  );
-  const events = useMemo(() => (caseRecord ? getEventsForCase(caseRecord.id) : []), [caseRecord]);
-  const alerts = useMemo(() => (caseRecord ? getAlertsForCase(caseRecord.id) : []), [caseRecord]);
-  const evidenceDocs = useMemo(() => (caseRecord ? getEvidenceForCase(caseRecord.id) : []), [caseRecord]);
+  // "version" changes when the NLP adds entities or links, so these are recomputed then
+  /* eslint-disable react-hooks/exhaustive-deps */
+  const caseEntities = useMemo(() => (caseRecord ? getEntitiesForCase(caseRecord.id) : []), [caseRecord, version]);
+  const relationships = useMemo(() => (caseRecord ? getRelationshipsForCase(caseRecord.id) : []), [caseRecord, version]);
+  const events = useMemo(() => (caseRecord ? getEventsForCase(caseRecord.id) : []), [caseRecord, version]);
+  const alerts = useMemo(() => (caseRecord ? getAlertsForCase(caseRecord.id) : []), [caseRecord, version]);
+  const evidenceDocs = useMemo(() => (caseRecord ? getEvidenceForCase(caseRecord.id) : []), [caseRecord, version]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   const filteredEntities = useMemo(
     () => caseEntities.filter((e) => filterState.entityTypes.has(e.type)),
@@ -160,12 +152,11 @@ export default function CaseWorkspace() {
   if (!caseRecord) {
     return (
       <div className="py-20 text-center text-sm text-text-muted">
-        Case not found. <Link to="/cases" className="text-cyan-400 underline">Back to cases</Link>
+        {tr("cw.notFound")} <Link to="/cases" className="text-cyan-400 underline">{tr("cw.backToCases")}</Link>
       </div>
     );
   }
 
-  const daysOpen = Math.round((Date.now() - new Date(caseRecord.createdAt).getTime()) / 86400000);
 
   function handleSelectNode(id: string | null) {
     if (!findConnectionMode || id === null) {
@@ -201,64 +192,77 @@ export default function CaseWorkspace() {
             <div className="flex flex-wrap items-center gap-2">
               <span className="mono text-xs text-text-muted">{caseRecord.id}</span>
               <Badge variant={caseRecord.status === "active" ? "cyan" : caseRecord.status === "under_review" ? "amber" : "green"}>
-                {caseRecord.status.replace("_", " ")}
+                {tr(`status.${caseRecord.status}`)}
               </Badge>
               <Badge variant={caseRecord.priority === "critical" ? "red" : caseRecord.priority === "high" ? "orange" : "outline"}>
-                {caseRecord.priority} priority
+                {tr("prio.suffix", { p: tr(`prio.${caseRecord.priority}`) })}
               </Badge>
             </div>
             <h1 className="mt-1.5 text-lg font-semibold text-text">{caseRecord.title}</h1>
             <p className="text-xs text-text-secondary">{caseRecord.category}</p>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex -space-x-2">
-              {caseRecord.assignedInvestigators.map((inv) => (
-                <div
-                  key={inv.badge}
-                  title={inv.name}
-                  className="flex size-8 items-center justify-center rounded-full border-2 border-bg-elevated bg-panel-hover text-[10px] font-semibold text-cyan-300"
-                >
-                  {inv.initials}
-                </div>
-              ))}
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-[10px] uppercase tracking-wide text-text-muted">{tr("cw.leadAgencies")}</span>
+              <div className="flex flex-wrap justify-end gap-1">
+                {caseRecord.assignedInvestigators.map((inv) => (
+                  <Badge key={inv.badge} variant="outline" title={inv.name}>{inv.badge}</Badge>
+                ))}
+              </div>
             </div>
             <Separator orientation="vertical" className="h-8" />
-            <Link to="/evidence"><Button size="sm" variant="outline"><UploadCloud size={13} /> Upload Evidence</Button></Link>
-            <Button size="sm" onClick={() => window.print()}><FileText size={13} /> Generate Report</Button>
+            <Link to="/evidence"><Button size="sm" variant="outline"><UploadCloud size={13} /> {tr("cw.uploadEvidence")}</Button></Link>
+            <Button size="sm" onClick={() => window.print()}><FileText size={13} /> {tr("cw.generateReport")}</Button>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-4 text-[11px] text-text-muted">
-          <span>Created {formatDate(caseRecord.createdAt)}</span>
-          <span>Updated {formatDate(caseRecord.updatedAt)}</span>
-          <span>{daysOpen} days open</span>
-          <span>{caseEntities.length} entities · {relationships.length} relationships · {evidenceDocs.length} evidence items</span>
+          {caseRecord.year && <span>{tr("cw.cameToLight", { year: caseRecord.year })}</span>}
+          {caseRecord.place && <span>{caseRecord.place}</span>}
+          <span>{tr("cw.reviewed", { date: formatDate(caseRecord.updatedAt) })}</span>
+          <span>{tr("cw.headerCounts", { e: caseEntities.length, r: relationships.length, d: evidenceDocs.length })}</span>
         </div>
       </Card>
 
       <Tabs defaultValue="overview">
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="graph">Network Graph</TabsTrigger>
-          <TabsTrigger value="entities">Entities</TabsTrigger>
-          <TabsTrigger value="timeline">Timeline</TabsTrigger>
-          <TabsTrigger value="evidence">Evidence</TabsTrigger>
-          <TabsTrigger value="ai">AI Insights</TabsTrigger>
-          <TabsTrigger value="report">Report</TabsTrigger>
+          <TabsTrigger value="overview">{tr("cw.tab.overview")}</TabsTrigger>
+          <TabsTrigger value="graph">{tr("cw.tab.graph")}</TabsTrigger>
+          <TabsTrigger value="entities">{tr("nav.entities")}</TabsTrigger>
+          <TabsTrigger value="timeline">{tr("cw.tab.timeline")}</TabsTrigger>
+          <TabsTrigger value="evidence">{tr("cw.tab.evidence")}</TabsTrigger>
+          <TabsTrigger value="ai">{tr("nav.aiInsights")}</TabsTrigger>
+          <TabsTrigger value="report">{tr("cw.tab.report")}</TabsTrigger>
         </TabsList>
 
         {/* OVERVIEW */}
         <TabsContent value="overview">
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
             <Card className="xl:col-span-2">
-              <CardHeader><CardTitle>Case Summary</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{tr("cw.summary")}</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-xs leading-relaxed text-text-secondary">{caseRecord.description}</p>
+                {(caseRecord.impact || caseRecord.outcome) && (
+                  <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    {caseRecord.impact && (
+                      <div className="rounded-md border border-border bg-panel-hover/30 p-3">
+                        <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-text-muted">{tr("cw.howBig")}</p>
+                        <p className="text-xs leading-relaxed text-text">{caseRecord.impact}</p>
+                      </div>
+                    )}
+                    {caseRecord.outcome && (
+                      <div className="rounded-md border border-border bg-panel-hover/30 p-3">
+                        <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-text-muted">{tr("cw.stands")}</p>
+                        <p className="text-xs leading-relaxed text-text">{caseRecord.outcome}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
                   {[
-                    { label: "Entities", value: caseEntities.length },
-                    { label: "Relationships", value: relationships.length },
-                    { label: "Evidence", value: evidenceDocs.length },
-                    { label: "Days Open", value: daysOpen },
+                    { label: tr("nav.entities"), value: caseEntities.length },
+                    { label: tr("cw.stat.relationships"), value: relationships.length },
+                    { label: tr("cw.tab.evidence"), value: evidenceDocs.length },
+                    { label: tr("common.year"), value: caseRecord.year ?? "—" },
                   ].map((s) => (
                     <div key={s.label} className="rounded-md border border-border bg-panel-hover/40 p-2.5 text-center">
                       <p className="mono text-lg font-semibold text-text">{s.value}</p>
@@ -269,15 +273,54 @@ export default function CaseWorkspace() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle>Key Entities</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{tr("cw.keyEntities")}</CardTitle></CardHeader>
               <CardContent>
                 <KeyPlayersPanel rows={centrality} onSelect={setSelectedNodeId} activeId={selectedNodeId} />
               </CardContent>
             </Card>
           </div>
 
+          {((caseRecord.images?.length ?? 0) > 0 || (caseRecord.sources?.length ?? 0) > 0) && (
+            <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
+              {(caseRecord.images?.length ?? 0) > 0 && (
+                <Card className="xl:col-span-2">
+                  <CardHeader><CardTitle>{tr("cw.photos")}</CardTitle></CardHeader>
+                  <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    {caseRecord.images!.map((img) => (
+                      <figure key={img.url} className="overflow-hidden rounded-md border border-border bg-panel-hover/30">
+                        <a href={img.pageUrl} target="_blank" rel="noreferrer">
+                          <img src={img.url} alt={img.caption} referrerPolicy="no-referrer" className="h-40 w-full object-cover" />
+                        </a>
+                        <figcaption className="p-2 text-[10px] leading-snug text-text-muted">
+                          <span className="block text-text-secondary">{img.caption}</span>
+                          {tr("cw.photoCredit", { credit: img.credit, license: img.license })}
+                        </figcaption>
+                      </figure>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+              {(caseRecord.sources?.length ?? 0) > 0 && (
+                <Card className={(caseRecord.images?.length ?? 0) > 0 ? "" : "xl:col-span-3"}>
+                  <CardHeader><CardTitle>{tr("cw.articles")}</CardTitle></CardHeader>
+                  <CardContent className="flex flex-col gap-1.5">
+                    {caseRecord.sources!.map((s) => (
+                      <a key={s.url} href={s.url} target="_blank" rel="noreferrer" className="group flex items-start gap-2 rounded-md border border-border bg-panel-hover/30 px-2.5 py-2 hover:border-border-strong">
+                        <ExternalLink size={12} className="mt-0.5 shrink-0 text-text-muted group-hover:text-cyan-300" />
+                        <span className="min-w-0">
+                          <span className="block text-xs text-text group-hover:text-cyan-300">{s.title}</span>
+                          <span className="text-[10px] text-text-muted">{s.publisher}</span>
+                        </span>
+                      </a>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
           <Card className="mt-4">
-            <CardHeader><SectionHeader title="Recent Activity" description="Latest logged events for this case" /></CardHeader>
+            <CardHeader><SectionHeader title={tr("cw.recent")} description={tr("cw.recentDesc")} /></CardHeader>
             <CardContent className="flex flex-col gap-2">
               {events.slice(-5).reverse().map((e) => {
                 const Icon = EVENT_ICON[e.type];
@@ -322,7 +365,7 @@ export default function CaseWorkspace() {
             <Card className="relative overflow-hidden p-0 lg:h-[640px]">
               <div className="absolute right-3 top-3 z-10">
                 <Button size="sm" variant="secondary" onClick={() => graphRef.current?.zoomToFit()}>
-                  <RotateCcw size={12} /> Reset View
+                  <RotateCcw size={12} /> {tr("net.resetView")}
                 </Button>
               </div>
               <NetworkGraph
@@ -343,8 +386,8 @@ export default function CaseWorkspace() {
             <Card className="p-0 lg:h-[640px] lg:overflow-y-auto">
               {findConnectionMode ? (
                 <div className="p-4">
-                  <p className="mb-3 text-[11px] font-medium uppercase tracking-wide text-cyan-300">Find Connection</p>
-                  <p className="mb-3 text-xs text-text-secondary">Click two nodes on the graph to reveal the shortest path between them.</p>
+                  <p className="mb-3 text-[11px] font-medium uppercase tracking-wide text-cyan-300">{tr("net.findConnection")}</p>
+                  <p className="mb-3 text-xs text-text-secondary">{tr("cw.findHint")}</p>
                   <div className="flex flex-col gap-2">
                     {[0, 1].map((i) => {
                       const id = connectionPick[i];
@@ -358,7 +401,7 @@ export default function CaseWorkspace() {
                               <span className="text-xs text-text">{e.name}</span>
                             </>
                           ) : (
-                            <span className="text-xs text-text-muted">Click a node…</span>
+                            <span className="text-xs text-text-muted">{tr("net.clickNode")}</span>
                           )}
                         </div>
                       );
@@ -367,11 +410,11 @@ export default function CaseWorkspace() {
                   {pathResult !== undefined && (
                     <div className="mt-4 border-t border-border pt-3">
                       {pathResult === null ? (
-                        <p className="text-xs text-red">No path found within the current filters.</p>
+                        <p className="text-xs text-red">{tr("net.noPath")}</p>
                       ) : (
                         <>
                           <p className="mb-2 text-xs text-green">
-                            Path found — {pathResult.length - 1} hop{pathResult.length - 1 === 1 ? "" : "s"}
+                            {trn("net.pathFound", pathResult.length - 1)}
                           </p>
                           <div className="flex flex-col gap-1.5">
                             {pathResult.map((id, i) => {
@@ -400,7 +443,7 @@ export default function CaseWorkspace() {
               ) : (
                 <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
                   <Share2 size={24} className="text-text-muted" />
-                  <p className="text-xs text-text-muted">Click any node to view its profile, or enable Key Players / Find Connection from the filters panel.</p>
+                  <p className="text-xs text-text-muted">{tr("cw.emptyNode")}</p>
                 </div>
               )}
             </Card>
@@ -410,7 +453,7 @@ export default function CaseWorkspace() {
         {/* ENTITIES */}
         <TabsContent value="entities">
           <div className="mb-3 flex flex-wrap gap-1.5">
-            <FilterPill active={entityTypeFilter === "all"} onClick={() => setEntityTypeFilter("all")} label={`All (${caseEntities.length})`} />
+            <FilterPill active={entityTypeFilter === "all"} onClick={() => setEntityTypeFilter("all")} label={tr("cw.all", { n: caseEntities.length })} />
             {(Object.keys(entityTypeCounts) as EntityType[]).map((t) => (
               <FilterPill key={t} active={entityTypeFilter === t} onClick={() => setEntityTypeFilter(t)} label={`${ENTITY_TYPE_LABEL[t]} (${entityTypeCounts[t]})`} />
             ))}
@@ -419,11 +462,11 @@ export default function CaseWorkspace() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Entity</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Risk</TableHead>
-                  <TableHead>Connections</TableHead>
-                  <TableHead>Cases</TableHead>
+                  <TableHead>{tr("cw.col.entity")}</TableHead>
+                  <TableHead>{tr("common.type")}</TableHead>
+                  <TableHead>{tr("common.risk")}</TableHead>
+                  <TableHead>{tr("common.connections")}</TableHead>
+                  <TableHead>{tr("common.cases")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -435,7 +478,7 @@ export default function CaseWorkspace() {
                         <span className="font-medium text-text">{e.name}</span>
                       </Link>
                     </TableCell>
-                    <TableCell className="capitalize text-text-secondary">{ENTITY_TYPE_LABEL[e.type]}</TableCell>
+                    <TableCell className="text-text-secondary">{ENTITY_TYPE_LABEL[e.type]}</TableCell>
                     <TableCell><RiskBadge level={e.riskLevel} /></TableCell>
                     <TableCell className="mono">{relationships.filter((r) => r.sourceId === e.id || r.targetId === e.id).length}</TableCell>
                     <TableCell className="text-text-secondary">{e.caseIds.length}</TableCell>
@@ -468,7 +511,7 @@ export default function CaseWorkspace() {
                       <div className="min-w-0 flex-1 pb-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-sm font-medium text-text">{e.title}</p>
-                          <Badge variant="outline" className="capitalize">{e.type}</Badge>
+                          <Badge variant="outline">{tr(`evtype.${e.type}`)}</Badge>
                         </div>
                         <p className="mt-0.5 text-xs text-text-secondary">{e.description}</p>
                         <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -508,11 +551,11 @@ export default function CaseWorkspace() {
                     </div>
                     <div className="min-w-0">
                       <p className="truncate text-xs font-medium text-text">{doc.fileName}</p>
-                      <p className="text-[10px] text-text-muted">{EVIDENCE_TYPE_LABEL[doc.type]} · {doc.sizeKb} KB</p>
+                      <p className="text-[10px] text-text-muted">{tr(`evd.${doc.type}`)} · {doc.sizeKb} KB</p>
                     </div>
                   </div>
                   <Badge variant={doc.extractionStatus === "completed" ? "green" : doc.extractionStatus === "processing" ? "cyan" : "outline"}>
-                    {doc.extractionStatus}
+                    {tr(`extract.${doc.extractionStatus}`)}
                   </Badge>
                 </div>
                 <div className="mt-3 flex items-center gap-1">
@@ -526,7 +569,7 @@ export default function CaseWorkspace() {
                     );
                   })}
                 </div>
-                <p className="mt-1.5 text-[10px] text-text-muted">Uploaded {formatDate(doc.uploadedAt)}</p>
+                <p className="mt-1.5 text-[10px] text-text-muted">{tr("cw.uploaded", { date: formatDate(doc.uploadedAt) })}</p>
               </Card>
             ))}
           </div>
@@ -536,7 +579,7 @@ export default function CaseWorkspace() {
         <TabsContent value="ai">
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
             <Card className="xl:col-span-2">
-              <CardHeader><SectionHeader title="Suspicious Patterns" description="AI-flagged anomalies specific to this case" /></CardHeader>
+              <CardHeader><SectionHeader title={tr("cw.suspicious")} description={tr("cw.suspiciousDesc")} /></CardHeader>
               <CardContent className="flex flex-col gap-2.5">
                 {alerts.map((a) => (
                   <AlertCard
@@ -551,7 +594,7 @@ export default function CaseWorkspace() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-1.5"><Sparkles size={14} className="text-cyan-400" /> Ask the Network</CardTitle>
+                <CardTitle className="flex items-center gap-1.5"><Sparkles size={14} className="text-cyan-400" /> {tr("cw.ask")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="relative">
@@ -559,7 +602,7 @@ export default function CaseWorkspace() {
                   <Input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="e.g. Who is connected to Rohan Verma?"
+                    placeholder={tr("cw.askPh")}
                     className="pl-8"
                   />
                 </div>
@@ -568,8 +611,7 @@ export default function CaseWorkspace() {
                     {queryResult.match ? (
                       <>
                         <p className="text-xs text-text-secondary">
-                          <span className="font-medium text-text">{queryResult.match.name}</span> is connected to{" "}
-                          <span className="font-medium text-cyan-300">{queryResult.count}</span> entities within 2 hops.
+                          {tr("cw.askResult", { name: queryResult.match.name, n: queryResult.count })}
                         </p>
                         <div className="mt-2 h-52 overflow-hidden rounded-md border border-border">
                           <NetworkGraph
@@ -582,7 +624,7 @@ export default function CaseWorkspace() {
                         </div>
                       </>
                     ) : (
-                      <p className="text-xs text-text-muted">No matching entity found in this case. Try a name like “Aditya Malhotra”.</p>
+                      <p className="text-xs text-text-muted">{tr("cw.askNone")}</p>
                     )}
                   </div>
                 )}
@@ -597,22 +639,22 @@ export default function CaseWorkspace() {
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div>
                 <p className="mono text-[11px] text-text-muted">{caseRecord.id}</p>
-                <h2 className="text-lg font-semibold text-text">{caseRecord.title} — Investigation Report</h2>
-                <p className="text-xs text-text-muted">Generated {formatDateTime(new Date().toISOString())}</p>
+                <h2 className="text-lg font-semibold text-text">{tr("cw.report.title", { title: caseRecord.title })}</h2>
+                <p className="text-xs text-text-muted">{tr("cw.report.generated", { date: formatDateTime(new Date().toISOString()) })}</p>
               </div>
-              <Button size="sm" variant="outline" onClick={() => window.print()}><Printer size={13} /> Export</Button>
+              <Button size="sm" variant="outline" onClick={() => window.print()}><Printer size={13} /> {tr("common.export")}</Button>
             </div>
 
             <section className="mt-5">
-              <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-cyan-300">Case Summary</h3>
+              <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-cyan-300">{tr("cw.summary")}</h3>
               <p className="text-xs leading-relaxed text-text-secondary">{caseRecord.description}</p>
             </section>
 
             <section className="mt-5">
-              <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-cyan-300">Key Entities</h3>
+              <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-cyan-300">{tr("cw.keyEntities")}</h3>
               <Table>
                 <TableHeader>
-                  <TableRow><TableHead>Entity</TableHead><TableHead>Type</TableHead><TableHead>Connections</TableHead><TableHead>Risk</TableHead></TableRow>
+                  <TableRow><TableHead>{tr("cw.col.entity")}</TableHead><TableHead>{tr("common.type")}</TableHead><TableHead>{tr("common.connections")}</TableHead><TableHead>{tr("common.risk")}</TableHead></TableRow>
                 </TableHeader>
                 <TableBody>
                   {centrality.slice(0, 6).map((row) => (
@@ -628,33 +670,33 @@ export default function CaseWorkspace() {
             </section>
 
             <section className="mt-5">
-              <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-cyan-300">Timeline Summary</h3>
+              <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-cyan-300">{tr("cw.report.timeline")}</h3>
               <p className="text-xs text-text-secondary">
-                {events.length} logged events between {events[0] && formatDate(events[0].timestamp)} and{" "}
-                {events.length > 0 && formatDate(events[events.length - 1].timestamp)}. Most recent: “{events[events.length - 1]?.title}”.
+                {events.length > 0 && tr("cw.report.timelineText", { n: events.length, from: formatDate(events[0].timestamp), to: formatDate(events[events.length - 1].timestamp), title: events[events.length - 1].title })}
               </p>
             </section>
 
             <section className="mt-5">
-              <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-cyan-300">AI Findings</h3>
+              <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-cyan-300">{tr("cw.report.findings")}</h3>
               <ul className="flex flex-col gap-1">
                 {alerts.map((a) => (
                   <li key={a.id} className="flex items-start gap-2 text-xs text-text-secondary">
                     <ShieldAlert size={12} className="mt-0.5 shrink-0 text-amber" />
-                    {a.title} <span className="mono text-text-muted">({a.confidence}% confidence)</span>
+                    {a.title} <span className="mono text-text-muted">({tr("cw.confPct", { n: a.confidence })})</span>
                   </li>
                 ))}
               </ul>
             </section>
 
             <section className="mt-6 border-t border-border pt-4">
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-cyan-300">Investigator Sign-off</h3>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-cyan-300">{tr("cw.report.agencies")}</h3>
               {caseRecord.assignedInvestigators.map((inv) => (
                 <div key={inv.badge} className="flex items-center gap-2 text-xs text-text-secondary">
                   <CheckCircle2 size={13} className="text-green" />
-                  {inv.name} — {inv.badge} <span className="mono text-text-muted">· digitally signed</span>
+                  {inv.name}
                 </div>
               ))}
+              <p className="mt-2 text-[10px] text-text-muted">{tr("cw.report.disclaimer")}</p>
             </section>
           </Card>
         </TabsContent>
@@ -664,7 +706,6 @@ export default function CaseWorkspace() {
         evidence={selectedEvidence}
         open={!!selectedEvidence}
         onOpenChange={(v) => !v && setSelectedEvidence(null)}
-        onConfirm={(newRels) => setExtraRelationships((prev) => [...prev, ...newRels])}
       />
     </div>
   );

@@ -17,6 +17,7 @@ import {
   type AccessRequest,
 } from "@/lib/access";
 import { formatDateTime } from "@/lib/utils";
+import { tr } from "@/i18n";
 
 interface AccessData {
   level: number;
@@ -29,7 +30,7 @@ const REASON_MIN = 20;
 const REASON_MAX = 2000;
 
 function errorText(err: unknown) {
-  return err instanceof ApiError ? err.message : "Something went wrong. Please try again.";
+  return err instanceof ApiError ? err.message : tr("login.generic");
 }
 
 const when = (ms: number) => formatDateTime(new Date(ms).toISOString());
@@ -56,7 +57,7 @@ export function AccessPanel() {
         {error}
       </p>
     ) : (
-      <p className="text-xs text-text-muted">Loading…</p>
+      <p className="text-xs text-text-muted">{tr("common.loading")}</p>
     );
   }
 
@@ -66,7 +67,7 @@ export function AccessPanel() {
     <div className="flex max-w-xl flex-col gap-4">
       <Card>
         <CardHeader>
-          <CardTitle>Your Access Level</CardTitle>
+          <CardTitle>{tr("acc.yourLevel")}</CardTitle>
         </CardHeader>
         <CardContent className="flex items-center gap-4">
           <div className="mono flex size-16 shrink-0 items-center justify-center rounded-xl border border-border-strong bg-panel-hover text-3xl font-semibold text-text">
@@ -75,7 +76,7 @@ export function AccessPanel() {
           <div className="min-w-0">
             <LevelPips level={data.level} className="mb-1.5" />
             <p className="text-xs text-text-secondary">
-              Level {data.level} of {data.maxLevel}. What each level can see is set by your department administrator.
+              {tr("acc.levelOf", { n: data.level, max: data.maxLevel })}
             </p>
           </div>
         </CardContent>
@@ -85,7 +86,7 @@ export function AccessPanel() {
         <PendingCard request={pending} onChange={setData} />
       ) : data.level >= MAX_ACCESS_LEVEL ? (
         <Card>
-          <CardContent className="pt-4 text-xs text-text-secondary">You already have the highest access level.</CardContent>
+          <CardContent className="pt-4 text-xs text-text-secondary">{tr("acc.highest")}</CardContent>
         </Card>
       ) : (
         <RequestForm currentLevel={data.level} onSent={setData} />
@@ -93,25 +94,25 @@ export function AccessPanel() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Request History</CardTitle>
+          <CardTitle>{tr("acc.history")}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
-          {data.requests.length === 0 && <p className="text-xs text-text-muted">You haven't requested higher access yet.</p>}
+          {data.requests.length === 0 && <p className="text-xs text-text-muted">{tr("acc.noRequests")}</p>}
           {data.requests.map((r) => (
             <div key={r.id} className="rounded-md border border-border bg-panel-hover/30 px-3 py-2.5">
               <div className="flex flex-wrap items-center gap-2">
                 <RequestStatusBadge status={r.status} />
                 <span className="text-xs text-text">
-                  Level {r.fromLevel} → {r.requestedLevel}
+                  {tr("acc.fromTo", { from: r.fromLevel, to: r.requestedLevel })}
                 </span>
                 {r.status === "approved" && r.grantedLevel !== null && (
-                  <span className="text-xs text-green">granted level {r.grantedLevel}</span>
+                  <span className="text-xs text-green">{tr("acc.granted", { n: r.grantedLevel })}</span>
                 )}
                 <span className="ml-auto text-[10px] text-text-muted">{when(r.createdAt)}</span>
               </div>
               {r.decisionNote && (
                 <p className="mt-1.5 text-[11px] text-text-secondary">
-                  <span className="text-text-muted">{r.decidedBy || "Administrator"}:</span> {r.decisionNote}
+                  <span className="text-text-muted">{r.decidedBy || tr("acc.administrator")}:</span> {r.decisionNote}
                 </p>
               )}
             </div>
@@ -141,13 +142,12 @@ function PendingCard({ request, onChange }: { request: AccessRequest; onChange: 
     <Card className="border-amber/30">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          Request Under Review <LevelBadge level={request.requestedLevel} />
+          {tr("acc.underReview")} <LevelBadge level={request.requestedLevel} />
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-xs text-text-secondary">
-          Sent {when(request.createdAt)}. An administrator will review your reason and documents and decide which level to
-          grant. You can't send another request until this one is decided.
+          {tr("acc.sent", { when: when(request.createdAt) })}
         </p>
         <p className="whitespace-pre-wrap rounded-md border border-border bg-panel-hover/30 px-3 py-2 text-xs text-text">{request.reason}</p>
         <div className="flex flex-wrap gap-1.5">
@@ -163,7 +163,7 @@ function PendingCard({ request, onChange }: { request: AccessRequest; onChange: 
           </p>
         )}
         <Button variant="outline" size="sm" className="w-fit" disabled={busy} onClick={withdraw}>
-          <Undo2 size={13} /> {busy ? "Withdrawing…" : "Withdraw request"}
+          <Undo2 size={13} /> {busy ? tr("acc.withdrawing") : tr("acc.withdraw")}
         </Button>
       </CardContent>
     </Card>
@@ -185,15 +185,15 @@ function RequestForm({ currentLevel, onSent }: { currentLevel: number; onSent: (
     let problem = "";
     for (const f of incoming) {
       if (next.length >= MAX_UPLOAD_FILES) {
-        problem = `You can attach up to ${MAX_UPLOAD_FILES} files.`;
+        problem = tr("acc.errMax", { n: MAX_UPLOAD_FILES });
         break;
       }
       if (!/\.(pdf|png|jpe?g)$/i.test(f.name)) {
-        problem = `"${f.name}" isn't a PDF, PNG or JPEG file.`;
+        problem = tr("acc.errType", { name: f.name });
         continue;
       }
       if (f.size > MAX_UPLOAD_MB * 1024 * 1024) {
-        problem = `"${f.name}" is larger than ${MAX_UPLOAD_MB} MB.`;
+        problem = tr("acc.errSize", { name: f.name, mb: MAX_UPLOAD_MB });
         continue;
       }
       next.push(f);
@@ -229,45 +229,45 @@ function RequestForm({ currentLevel, onSent }: { currentLevel: number; onSent: (
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Request Higher Access</CardTitle>
+        <CardTitle>{tr("acc.requestTitle")}</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} className="flex flex-col gap-4">
           <div>
-            <Label className="mb-1.5 block">Level you are asking for</Label>
+            <Label className="mb-1.5 block">{tr("acc.askLevel")}</Label>
             <Select value={level} onValueChange={setLevel}>
-              <SelectTrigger className="h-9 w-40 text-sm" aria-label="Requested level">
+              <SelectTrigger className="h-9 w-40 text-sm" aria-label={tr("acc.askLevel")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {higher.map((n) => (
                   <SelectItem key={n} value={String(n)}>
-                    Level {n}
+                    {tr("acc.level", { n })}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <p className="mt-1 text-[11px] text-text-muted">The administrator may grant a different level than the one you ask for.</p>
+            <p className="mt-1 text-[11px] text-text-muted">{tr("acc.mayDiffer")}</p>
           </div>
 
           <div>
-            <Label className="mb-1.5 block">Why do you need it?</Label>
+            <Label className="mb-1.5 block">{tr("acc.why")}</Label>
             <Textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               maxLength={REASON_MAX}
               rows={5}
-              placeholder="Which case or duty needs this access, and who assigned it to you?"
+              placeholder={tr("acc.whyPh")}
             />
             <p className="mt-1 text-[11px] text-text-muted">
               {reason.trim().length < REASON_MIN
-                ? `At least ${REASON_MIN} characters (${reason.trim().length} so far)`
+                ? tr("acc.atLeast", { min: REASON_MIN, n: reason.trim().length })
                 : `${reason.length} / ${REASON_MAX}`}
             </p>
           </div>
 
           <div>
-            <Label className="mb-1.5 block">Proof of identity</Label>
+            <Label className="mb-1.5 block">{tr("acc.proof")}</Label>
             <div
               onDragOver={(e) => {
                 e.preventDefault();
@@ -281,13 +281,13 @@ function RequestForm({ currentLevel, onSent }: { currentLevel: number; onSent: (
             >
               <Paperclip size={16} className="text-text-muted" />
               <p className="text-xs text-text-secondary">
-                Drop your ID card scan or photo here, or{" "}
+                {tr("acc.drop")}{" "}
                 <button type="button" onClick={() => picker.current?.click()} className="text-cyan-300 hover:text-cyan-200">
-                  browse
+                  {tr("acc.browse")}
                 </button>
               </p>
               <p className="text-[11px] text-text-muted">
-                PDF, PNG or JPEG · up to {MAX_UPLOAD_FILES} files · {MAX_UPLOAD_MB} MB each
+                {tr("acc.fileRules", { n: MAX_UPLOAD_FILES, mb: MAX_UPLOAD_MB })}
               </p>
               <input
                 ref={picker}
@@ -311,7 +311,7 @@ function RequestForm({ currentLevel, onSent }: { currentLevel: number; onSent: (
                     <button
                       type="button"
                       onClick={() => setFiles((cur) => cur.filter((_, j) => j !== i))}
-                      aria-label={`Remove ${f.name}`}
+                      aria-label={tr("acc.remove", { name: f.name })}
                       className="text-text-muted hover:text-red"
                     >
                       <X size={13} />
@@ -321,7 +321,7 @@ function RequestForm({ currentLevel, onSent }: { currentLevel: number; onSent: (
               </ul>
             )}
             <p className="mt-2 flex items-center gap-1 text-[11px] text-text-muted">
-              <Lock size={10} /> Your documents are stored encrypted and can only be opened by administrators.
+              <Lock size={10} /> {tr("acc.encrypted")}
             </p>
           </div>
 
@@ -331,7 +331,7 @@ function RequestForm({ currentLevel, onSent }: { currentLevel: number; onSent: (
             </p>
           )}
           <Button type="submit" className="w-fit" disabled={busy || !ready}>
-            <Send size={14} /> {busy ? "Sending…" : "Send request"}
+            <Send size={14} /> {busy ? tr("acc.sending") : tr("acc.send")}
           </Button>
         </form>
       </CardContent>

@@ -69,6 +69,19 @@ db.exec(`
   -- at most one open request per person, enforced by the database so two quick clicks can't create two
   CREATE UNIQUE INDEX IF NOT EXISTS idx_access_requests_one_pending ON access_requests(user_id) WHERE status = 'pending';
 
+  -- badge/ID proof optionally attached at sign-up, before the account has ever been approved;
+  -- "data" is AES-256-GCM encrypted, same as request_files below
+  CREATE TABLE IF NOT EXISTS signup_files (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    original_name TEXT    NOT NULL,
+    mime          TEXT    NOT NULL,
+    size          INTEGER NOT NULL,
+    sha256        TEXT    NOT NULL,
+    data          BLOB    NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_signup_files_user ON signup_files(user_id);
+
   -- identity documents; "data" is AES-256-GCM encrypted
   CREATE TABLE IF NOT EXISTS request_files (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -104,3 +117,13 @@ function addColumn(table: string, column: string, definition: string): void {
 addColumn("users", "role", "TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin'))");
 addColumn("users", "access_level", "INTEGER NOT NULL DEFAULT 1 CHECK (access_level BETWEEN 1 AND 8)");
 addColumn("sessions", "realm", "TEXT NOT NULL DEFAULT 'user'");
+
+// Existing rows default to 'active' so nobody who could already sign in is suddenly locked out; only
+// people who sign up from here on start at 'pending_approval'.
+addColumn("users", "status", "TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('pending_approval', 'active', 'banned'))");
+addColumn("users", "position", "TEXT NOT NULL DEFAULT ''");
+addColumn("users", "ban_reason", "TEXT NOT NULL DEFAULT ''");
+addColumn("users", "banned_at", "INTEGER");
+addColumn("users", "approved_at", "INTEGER");
+// the approving admin's name is copied in (not a foreign key) so it survives that admin's own account being deleted
+addColumn("users", "approved_by_name", "TEXT NOT NULL DEFAULT ''");

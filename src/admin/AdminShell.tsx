@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { History, Inbox, KeySquare, LayoutDashboard, LogOut, Users, type LucideIcon } from "lucide-react";
+import { History, Inbox, KeySquare, LayoutDashboard, LogOut, UserCheck, Users, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAdminAuth } from "./AdminAuthContext";
 import { adminApi } from "./adminApi";
@@ -9,16 +9,18 @@ const PENDING_POLL_MS = 30_000;
 
 interface PendingState {
   pending: number;
+  pendingSignups: number;
   refreshPending: () => void;
 }
-const PendingCtx = createContext<PendingState>({ pending: 0, refreshPending: () => undefined });
+const PendingCtx = createContext<PendingState>({ pending: 0, pendingSignups: 0, refreshPending: () => undefined });
 
-/** Number of requests waiting for a decision (drives the badge). Pages call refreshPending after deciding. */
+/** Counts waiting for attention (drive the sidebar badges). Pages call refreshPending after deciding. */
 export const usePending = () => useContext(PendingCtx);
 
 const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
   { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
   { to: "/accounts", label: "Accounts", icon: Users },
+  { to: "/pending", label: "Pending Accounts", icon: UserCheck },
   { to: "/requests", label: "Access Requests", icon: Inbox },
   { to: "/audit", label: "Audit Log", icon: History },
 ];
@@ -26,10 +28,14 @@ const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
 export default function AdminShell() {
   const { admin, logout } = useAdminAuth();
   const [pending, setPending] = useState(0);
+  const [pendingSignups, setPendingSignups] = useState(0);
 
   const refreshPending = useCallback(() => {
     adminApi<{ pending: number }>("/requests?status=pending")
       .then((r) => setPending(r.pending))
+      .catch(() => undefined);
+    adminApi<{ users: unknown[] }>("/pending-signups")
+      .then((r) => setPendingSignups(r.users.length))
       .catch(() => undefined);
   }, []);
 
@@ -39,7 +45,7 @@ export default function AdminShell() {
     return () => clearInterval(timer);
   }, [refreshPending]);
 
-  const value = useMemo(() => ({ pending, refreshPending }), [pending, refreshPending]);
+  const value = useMemo(() => ({ pending, pendingSignups, refreshPending }), [pending, pendingSignups, refreshPending]);
   const initials = (admin?.name ?? "").split(/\s+/).map((p) => p[0]).join("").slice(0, 2).toUpperCase() || "AD";
 
   return (
@@ -76,6 +82,11 @@ export default function AdminShell() {
                 {to === "/requests" && pending > 0 && (
                   <span className="mono rounded-full bg-amber/20 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-amber">
                     {pending}
+                  </span>
+                )}
+                {to === "/pending" && pendingSignups > 0 && (
+                  <span className="mono rounded-full bg-amber/20 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-amber">
+                    {pendingSignups}
                   </span>
                 )}
               </NavLink>

@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import multer from "multer";
 import QRCode from "qrcode";
 import { z } from "zod";
 import {
@@ -6,6 +7,8 @@ import {
   LOCKOUT_MS,
   MAX_2FA_ATTEMPTS,
   MAX_LOGIN_FAILURES,
+  MAX_UPLOAD_BYTES,
+  MAX_UPLOAD_FILES,
   SESSION_COOKIES,
   SIGNUP_OPEN,
   type Realm,
@@ -23,7 +26,9 @@ import {
   type ClientMeta,
   type SessionRow,
 } from "../sessions.ts";
+import { saveSignupFiles, type NewSignupFile } from "../signupFiles.ts";
 import { checkTotp, newTotpSecret, totpUrl } from "../totp.ts";
+import { cleanFileName, sniffMime } from "../uploads.ts";
 import {
   activateTotp,
   clearFailedLogins,
@@ -69,7 +74,10 @@ const signupSchema = z.object({
     .max(64)
     .regex(/^[A-Za-z0-9._@+-]+$/, "Investigator ID can only use letters, numbers and . _ @ + -"),
   name: z.string().trim().min(1, "Full name is required").max(80),
+  email: z.email("Enter a valid email address").max(120),
   password: newPassword("Password"),
+  department: z.string().trim().max(80).optional().default(""),
+  position: z.string().trim().max(80).optional().default(""),
 });
 const profileSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(80),
@@ -172,6 +180,14 @@ export function createAuthRouter(realm: Realm): Router {
 
     clearFailedLogins(user.id);
     // Said only after the password is right, so it doesn't reveal which accounts exist.
+    if (user.status === "pending_approval") {
+      res.status(403).json({ error: "Your account is waiting for an administrator to approve it. Try again once you've been notified." });
+      return;
+    }
+    if (user.status === "banned") {
+      res.status(403).json({ error: "This account has been suspended. Contact an administrator." });
+      return;
+    }
     if (isAdminRealm && user.role !== "admin") {
       res.status(403).json({ error: "This account does not have administrator access." });
       return;
@@ -267,12 +283,21 @@ export function createAuthRouter(realm: Realm): Router {
     res.json({ signupOpen: SIGNUP_OPEN });
   });
 
-  router.post("/signup", signupLimiter, async (req, res) => {
+  const signupUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_UPLOAD_BYTES, files: MAX_UPLOAD_FILES, fields: 8, fieldSize: 16 * 1024 },
+    defParamCharset: "utf8", // browsers send file names as UTF-8; the default (latin1) would garble them
+  });
+
+  // One step on the server for what is a two-page wizard in the browser: the investigator only
+  // reaches the server once, at the end of page 2, with everything gathered so far (files included).
+  // Nothing is saved if they abandon the wizard partway through.
+  router.post("/signup", signupLimiter, signupUpload.array("files", MAX_UPLOAD_FILES), async (req, res) => {
     if (!SIGNUP_OPEN) {
       res.status(403).json({ error: "Sign-up is closed. Ask an administrator for an account." });
       return;
     }
-    const { username, name, password } = signupSchema.parse(req.body);
+    const { username, name, email, password, department, position } = signupSchema.parse(req.body);
 
     const existing = maybeAuth(res);
     if (existing) deleteSession(existing.session.id);
@@ -282,9 +307,20 @@ export function createAuthRouter(realm: Realm): Router {
       return;
     }
 
+    const uploaded = (req.files as Express.Multer.File[] | undefined) ?? [];
+    const files: NewSignupFile[] = [];
+    for (const f of uploaded) {
+      const mime = sniffMime(f.buffer);
+      if (!mime) {
+        res.status(400).json({ error: `"${cleanFileName(f.originalname)}" is not a PDF, PNG or JPEG file.` });
+        return;
+      }
+      files.push({ name: cleanFileName(f.originalname), mime, data: f.buffer });
+    }
+
     let user;
     try {
-      user = await createUser({ username, password, name, email: username.includes("@") ? username : "" });
+      user = await createUser({ username, password, name, email, department, position, status: "pending_approval" });
     } catch (err) {
       // two people picking the same ID at the same instant
       if ((err as { code?: string }).code === "SQLITE_CONSTRAINT_UNIQUE") {
@@ -293,10 +329,10 @@ export function createAuthRouter(realm: Realm): Router {
       }
       throw err;
     }
+    saveSignupFiles(user.id, files);
 
-    const { token, maxAgeMs } = createSession(user.id, "pending_enroll", clientMeta(req), realm);
-    setSessionCookie(res, realm, token, maxAgeMs);
-    res.json({ next: "enroll" });
+    // no session yet: they can't sign in until an administrator approves the account
+    res.status(201).json({ status: "pending_approval" });
   });
 
   router.post("/2fa/backup-codes/regenerate", requireStage("full"), async (req, res) => {

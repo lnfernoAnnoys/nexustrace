@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -11,6 +11,7 @@ import {
   MapPin,
   Landmark,
   Sparkles,
+  AtSign,
   UploadCloud,
   FileText,
   ChevronDown,
@@ -23,15 +24,16 @@ import {
 import { cn } from "@/lib/utils";
 import { useUserProfile } from "@/context/UserProfileContext";
 import { useAuth } from "@/context/AuthContext";
+import { tr } from "@/i18n";
 
 const entityLinks = [
-  { to: "/entities/person", label: "People", icon: Users },
-  { to: "/entities/phone", label: "Phone Numbers", icon: Phone },
-  { to: "/entities/vehicle", label: "Vehicles", icon: Car },
-  { to: "/entities/organization", label: "Organizations", icon: Building2 },
-  { to: "/entities/location", label: "Locations", icon: MapPin },
-  { to: "/entities/financial_account", label: "Financial Accounts", icon: Landmark },
-];
+  { to: "/entities/person", label: "nav.people", icon: Users },
+  { to: "/entities/phone", label: "nav.phones", icon: Phone },
+  { to: "/entities/vehicle", label: "nav.vehicles", icon: Car },
+  { to: "/entities/organization", label: "nav.organizations", icon: Building2 },
+  { to: "/entities/location", label: "nav.locations", icon: MapPin },
+  { to: "/entities/financial_account", label: "nav.accounts", icon: Landmark },
+] as const;
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
@@ -57,12 +59,12 @@ export function Sidebar() {
               </div>
               <div className="min-w-0 leading-tight">
                 <p className="truncate text-[13px] font-semibold tracking-wide text-text">NexusTrace</p>
-                <p className="truncate text-[10px] text-text-muted">Criminal Network Analysis</p>
+                <p className="truncate text-[10px] text-text-muted">{tr("nav.subtitle")}</p>
               </div>
             </div>
             <button
               onClick={() => setCollapsed(true)}
-              title="Collapse sidebar"
+              title={tr("nav.collapse")}
               className="flex size-7 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-panel-hover hover:text-text-secondary"
             >
               <PanelLeftClose size={15} />
@@ -71,7 +73,7 @@ export function Sidebar() {
         ) : (
           <button
             onClick={() => setCollapsed(false)}
-            title="Expand sidebar"
+            title={tr("nav.expand")}
             className="mx-auto flex size-7 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-panel-hover hover:text-text-secondary"
           >
             <PanelLeftOpen size={15} />
@@ -80,9 +82,9 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">
-        <NavItem to="/dashboard" icon={LayoutDashboard} label="Command Center" collapsed={collapsed} />
-        <NavItem to="/cases" icon={FolderLock} label="Cases" collapsed={collapsed} />
-        <NavItem to="/network" icon={Share2} label="Network Explorer" collapsed={collapsed} />
+        <NavItem to="/dashboard" icon={LayoutDashboard} label={tr("nav.commandCenter")} collapsed={collapsed} />
+        <NavItem to="/cases" icon={FolderLock} label={tr("nav.cases")} collapsed={collapsed} />
+        <NavItem to="/network" icon={Share2} label={tr("nav.network")} collapsed={collapsed} />
 
         <div className="mt-1">
           <button
@@ -95,7 +97,7 @@ export function Sidebar() {
             <Users size={16} className="shrink-0" />
             {!collapsed && (
               <>
-                <span className="flex-1 text-left">Entities</span>
+                <span className="flex-1 text-left">{tr("nav.entities")}</span>
                 <ChevronDown size={13} className={cn("transition-transform", entitiesOpen && "rotate-180")} />
               </>
             )}
@@ -114,7 +116,7 @@ export function Sidebar() {
                   }
                 >
                   <l.icon size={13} />
-                  {l.label}
+                  {tr(l.label)}
                 </NavLink>
               ))}
             </div>
@@ -123,9 +125,10 @@ export function Sidebar() {
 
         <div className="my-2 h-px bg-border" />
 
-        <NavItem to="/ai-insights" icon={Sparkles} label="AI Insights" collapsed={collapsed} />
-        <NavItem to="/evidence" icon={UploadCloud} label="Evidence Intake" collapsed={collapsed} />
-        <NavItem to="/reports" icon={FileText} label="Reports" collapsed={collapsed} />
+        <NavItem to="/ai-insights" icon={Sparkles} label={tr("nav.aiInsights")} collapsed={collapsed} />
+        <NavItem to="/social" icon={AtSign} label={tr("nav.social")} collapsed={collapsed} />
+        <NavItem to="/evidence" icon={UploadCloud} label={tr("nav.evidence")} collapsed={collapsed} />
+        <NavItem to="/reports" icon={FileText} label={tr("nav.reports")} collapsed={collapsed} />
       </nav>
 
       <div className="border-t border-border p-2.5">
@@ -133,7 +136,7 @@ export function Sidebar() {
           <Link
             to="/settings"
             className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border-strong bg-panel-hover text-[11px] font-semibold text-cyan-300"
-            title="Settings"
+            title={tr("nav.settings")}
           >
             {initials}
           </Link>
@@ -148,13 +151,13 @@ export function Sidebar() {
           )}
           {!collapsed && (
             <>
-              <Link to="/settings" title="Settings" className="shrink-0 text-text-muted transition-colors hover:text-cyan-300">
+              <Link to="/settings" title={tr("nav.settings")} className="shrink-0 text-text-muted transition-colors hover:text-cyan-300">
                 <SettingsIcon size={14} />
               </Link>
               <button
                 onClick={logout}
-                title="Sign out"
-                aria-label="Sign out"
+                title={tr("nav.signOut")}
+                aria-label={tr("nav.signOut")}
                 className="shrink-0 text-text-muted transition-colors hover:text-red"
               >
                 <LogOut size={14} />

@@ -10,9 +10,10 @@ import { BackupCodes } from "@/components/auth/BackupCodes";
 import { useAuth } from "@/context/AuthContext";
 import { api, ApiError } from "@/lib/api";
 import { timeAgo } from "@/lib/utils";
+import { tr } from "@/i18n";
 
 function errorText(err: unknown) {
-  return err instanceof ApiError ? err.message : "Something went wrong. Please try again.";
+  return err instanceof ApiError ? err.message : tr("login.generic");
 }
 
 export function ChangePasswordCard() {
@@ -25,7 +26,7 @@ export function ChangePasswordCard() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (next !== confirm) {
-      setMessage({ ok: false, text: "The new passwords don't match." });
+      setMessage({ ok: false, text: tr("sec.mismatch") });
       return;
     }
     setBusy(true);
@@ -35,7 +36,7 @@ export function ChangePasswordCard() {
       setCurrent("");
       setNext("");
       setConfirm("");
-      setMessage({ ok: true, text: "Password updated. Your other devices were signed out." });
+      setMessage({ ok: true, text: tr("sec.pwUpdated") });
     } catch (err) {
       setMessage({ ok: false, text: errorText(err) });
     } finally {
@@ -47,33 +48,33 @@ export function ChangePasswordCard() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-1.5">
-          <KeyRound size={14} className="text-cyan-400" /> Change Password
+          <KeyRound size={14} className="text-cyan-400" /> {tr("sec.changePw")}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} className="flex flex-col gap-3">
           <div>
-            <Label className="mb-1.5 block">Current Password</Label>
+            <Label className="mb-1.5 block">{tr("sec.currentPw")}</Label>
             <Input type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="mb-1.5 block">New Password</Label>
+              <Label className="mb-1.5 block">{tr("sec.newPw")}</Label>
               <Input type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />
             </div>
             <div>
-              <Label className="mb-1.5 block">Confirm Password</Label>
+              <Label className="mb-1.5 block">{tr("login.confirm")}</Label>
               <Input type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
             </div>
           </div>
-          <p className="text-[11px] text-text-muted">At least 10 characters.</p>
+          <p className="text-[11px] text-text-muted">{tr("sec.min10")}</p>
           {message && (
             <p role="alert" className={`text-xs ${message.ok ? "text-green" : "text-red"}`}>
               {message.text}
             </p>
           )}
           <Button type="submit" className="w-fit" disabled={busy || !current || !next || !confirm}>
-            {busy ? "Updating…" : "Update Password"}
+            {busy ? tr("sec.updating") : tr("sec.updatePw")}
           </Button>
         </form>
       </CardContent>
@@ -118,26 +119,26 @@ export function TwoFactorCard() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-1.5">
-          <Shield size={14} className="text-cyan-400" /> Two-Factor Authentication
+          <Shield size={14} className="text-cyan-400" /> {tr("login.twofa")}
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-medium text-text">Authenticator app</p>
+            <p className="text-xs font-medium text-text">{tr("sec.authApp")}</p>
             <p className="text-[11px] text-text-muted">
-              Required on every sign-in for MHA restricted-access systems. Lost your phone? An administrator can reset it.
+              {tr("sec.required")}
             </p>
           </div>
-          <Badge variant={user?.twoFactorEnabled ? "green" : "amber"}>{user?.twoFactorEnabled ? "Enabled" : "Not set up"}</Badge>
+          <Badge variant={user?.twoFactorEnabled ? "green" : "amber"}>{user?.twoFactorEnabled ? tr("sec.enabled") : tr("sec.notSetUp")}</Badge>
         </div>
         <div className="flex items-center justify-between rounded-md border border-border bg-panel-hover/30 px-3 py-2.5">
           <div>
-            <p className="text-xs text-text">Backup codes</p>
-            <p className="text-[11px] text-text-muted">{user?.backupCodesRemaining ?? 0} of 10 unused</p>
+            <p className="text-xs text-text">{tr("sec.backupCodes")}</p>
+            <p className="text-[11px] text-text-muted">{tr("sec.unused", { n: user?.backupCodesRemaining ?? 0 })}</p>
           </div>
           <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
-            Regenerate
+            {tr("sec.regenerate")}
           </Button>
         </div>
       </CardContent>
@@ -145,16 +146,16 @@ export function TwoFactorCard() {
       <Dialog open={open} onOpenChange={(v) => (v ? setOpen(true) : close())}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Regenerate backup codes</DialogTitle>
+            <DialogTitle>{tr("sec.regenTitle")}</DialogTitle>
             <DialogDescription>
-              {codes ? "Save these somewhere safe. Your old codes no longer work." : "Confirm your password. This replaces all your existing backup codes."}
+              {codes ? tr("sec.regenSave") : tr("sec.regenConfirm")}
             </DialogDescription>
           </DialogHeader>
           {codes ? (
             <>
               <BackupCodes codes={codes} />
               <DialogFooter>
-                <Button onClick={close}>Done</Button>
+                <Button onClick={close}>{tr("sec.done")}</Button>
               </DialogFooter>
             </>
           ) : (
@@ -163,7 +164,7 @@ export function TwoFactorCard() {
                 type="password"
                 autoFocus
                 autoComplete="current-password"
-                placeholder="Current password"
+                placeholder={tr("sec.currentPwPh")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -174,10 +175,10 @@ export function TwoFactorCard() {
               )}
               <DialogFooter className="mt-1">
                 <Button type="button" variant="outline" onClick={close}>
-                  Cancel
+                  {tr("common.cancel")}
                 </Button>
                 <Button type="submit" disabled={busy || !password}>
-                  {busy ? "Working…" : "Generate new codes"}
+                  {busy ? tr("sec.working") : tr("sec.generate")}
                 </Button>
               </DialogFooter>
             </form>
@@ -225,7 +226,7 @@ export function SessionsCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Active Sessions</CardTitle>
+        <CardTitle>{tr("sec.sessions")}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         {error && (
@@ -239,19 +240,19 @@ export function SessionsCard() {
             <div className="min-w-0 flex-1">
               <p className="text-xs text-text">{s.device}</p>
               <p className="text-[10px] text-text-muted">
-                {s.ip} · active {timeAgo(new Date(s.lastSeen).toISOString())}
+                {s.ip} · {tr("sec.active", { when: timeAgo(new Date(s.lastSeen).toISOString()) })}
               </p>
             </div>
             {s.current ? (
-              <Badge variant="green">This device</Badge>
+              <Badge variant="green">{tr("sec.thisDevice")}</Badge>
             ) : (
               <Button size="sm" variant="outline" onClick={() => revoke(s.id)}>
-                Sign out
+                {tr("nav.signOut")}
               </Button>
             )}
           </div>
         ))}
-        {sessions === null && !error && <p className="text-xs text-text-muted">Loading…</p>}
+        {sessions === null && !error && <p className="text-xs text-text-muted">{tr("common.loading")}</p>}
       </CardContent>
     </Card>
   );

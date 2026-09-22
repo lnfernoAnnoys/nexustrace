@@ -1,11 +1,12 @@
-import type { RiskLevel } from "@/types";
+﻿import type { RiskLevel } from "@/types";
 import { cn } from "@/lib/utils";
+import { tr } from "@/i18n";
 
-const CONFIG: Record<RiskLevel, { label: string; className: string; dot: string }> = {
-  low: { label: "Low Risk", className: "border-green/30 bg-green/10 text-green", dot: "bg-green" },
-  medium: { label: "Medium Risk", className: "border-amber/30 bg-amber/10 text-amber", dot: "bg-amber" },
-  high: { label: "High Risk", className: "border-orange/30 bg-orange/10 text-orange", dot: "bg-orange" },
-  critical: { label: "Critical Risk", className: "border-red/30 bg-red/10 text-red", dot: "bg-red" },
+const CONFIG: Record<RiskLevel, { label: "risk.low" | "risk.medium" | "risk.high" | "risk.critical"; className: string; dot: string }> = {
+  low: { label: "risk.low", className: "border-green/30 bg-green/10 text-green", dot: "bg-green" },
+  medium: { label: "risk.medium", className: "border-amber/30 bg-amber/10 text-amber", dot: "bg-amber" },
+  high: { label: "risk.high", className: "border-orange/30 bg-orange/10 text-orange", dot: "bg-orange" },
+  critical: { label: "risk.critical", className: "border-red/30 bg-red/10 text-red", dot: "bg-red" },
 };
 
 export function RiskBadge({ level, className }: { level: RiskLevel; className?: string }) {
@@ -19,7 +20,7 @@ export function RiskBadge({ level, className }: { level: RiskLevel; className?: 
       )}
     >
       <span className={cn("size-1.5 rounded-full", c.dot, level === "critical" && "animate-pulse-slow")} />
-      {c.label}
+      {tr(c.label)}
     </span>
   );
 }

@@ -4,6 +4,8 @@ import { db } from "./db.ts";
 import { BACKUP_CODE_COUNT } from "./config.ts";
 import { hmac } from "./crypto.ts";
 
+export type AccountStatus = "pending_approval" | "active" | "banned";
+
 export interface UserRow {
   id: number;
   username: string;
@@ -11,9 +13,15 @@ export interface UserRow {
   name: string;
   badge: string;
   department: string;
+  position: string;
   email: string;
   role: "user" | "admin";
   access_level: number;
+  status: AccountStatus;
+  ban_reason: string;
+  banned_at: number | null;
+  approved_at: number | null;
+  approved_by_name: string;
   totp_secret_enc: string | null;
   totp_pending_enc: string | null;
   totp_enabled: number;
@@ -30,9 +38,11 @@ export interface PublicUser {
   name: string;
   badge: string;
   department: string;
+  position: string;
   email: string;
   role: "user" | "admin";
   accessLevel: number;
+  status: AccountStatus;
   twoFactorEnabled: boolean;
   backupCodesRemaining: number;
 }
@@ -63,23 +73,78 @@ export function listUsers(): UserRow[] {
   return db.prepare("SELECT * FROM users ORDER BY id").all() as UserRow[];
 }
 
+export function listPendingSignups(): UserRow[] {
+  return db.prepare("SELECT * FROM users WHERE status = 'pending_approval' ORDER BY id").all() as UserRow[];
+}
+
+export function countPendingSignups(): number {
+  return (db.prepare("SELECT COUNT(*) AS n FROM users WHERE status = 'pending_approval'").get() as { n: number }).n;
+}
+
 export async function createUser(input: {
   username: string;
   password: string;
   name: string;
   badge?: string;
   department?: string;
+  position?: string;
   email?: string;
+  /** Accounts made from the admin console or the CLI start active; public sign-up starts pending. */
+  status?: AccountStatus;
 }): Promise<UserRow> {
   const now = Date.now();
   const hash = await hashPassword(input.password);
   const result = db
     .prepare(
-      `INSERT INTO users (username, password_hash, name, badge, department, email, created_at, password_changed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO users (username, password_hash, name, badge, department, position, email, status, created_at, password_changed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(input.username, hash, input.name, input.badge ?? "", input.department ?? "", input.email ?? "", now, now);
+    .run(
+      input.username,
+      hash,
+      input.name,
+      input.badge ?? "",
+      input.department ?? "",
+      input.position ?? "",
+      input.email ?? "",
+      input.status ?? "active",
+      now,
+      now,
+    );
   return getUserById(Number(result.lastInsertRowid))!;
+}
+
+/** Lets a pending sign-up in. They can now sign in and will be asked to set up an authenticator. */
+export function approveSignup(id: number, approvedByName: string): void {
+  db.prepare("UPDATE users SET status = 'active', approved_at = ?, approved_by_name = ? WHERE id = ?").run(
+    Date.now(),
+    approvedByName,
+    id,
+  );
+}
+
+/**
+ * Blocks sign-in without touching anything the person already did. Any session they currently hold
+ * (either realm) is ended immediately, so a ban takes effect even if they're mid-session.
+ */
+export function banUser(id: number, reason: string): void {
+  db.transaction(() => {
+    db.prepare("UPDATE users SET status = 'banned', ban_reason = ?, banned_at = ? WHERE id = ?").run(reason, Date.now(), id);
+    db.prepare("DELETE FROM sessions WHERE user_id = ?").run(id);
+  })();
+}
+
+export function unbanUser(id: number): void {
+  db.prepare("UPDATE users SET status = 'active', ban_reason = '', banned_at = NULL WHERE id = ?").run(id);
+}
+
+/** Removes the account and everything tied to it (sessions, backup codes, requests, uploaded files). */
+export function deleteUser(id: number): void {
+  db.prepare("DELETE FROM users WHERE id = ?").run(id);
+}
+
+export function countAdmins(): number {
+  return (db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'admin'").get() as { n: number }).n;
 }
 
 export function setAccessLevel(id: number, level: number): void {
@@ -101,6 +166,20 @@ export function updateProfile(
     fields.badge,
     fields.department,
     fields.email,
+    id,
+  );
+}
+
+/** An administrator correcting someone's identity fields (not email — that stays the account holder's own to change). */
+export function adminUpdateIdentity(
+  id: number,
+  fields: { name: string; badge: string; department: string; position: string },
+): void {
+  db.prepare("UPDATE users SET name = ?, badge = ?, department = ?, position = ? WHERE id = ?").run(
+    fields.name,
+    fields.badge,
+    fields.department,
+    fields.position,
     id,
   );
 }
@@ -139,9 +218,11 @@ export function toPublicUser(user: UserRow): PublicUser {
     name: user.name,
     badge: user.badge,
     department: user.department,
+    position: user.position,
     email: user.email,
     role: user.role,
     accessLevel: user.access_level,
+    status: user.status,
     twoFactorEnabled: user.totp_enabled === 1,
     backupCodesRemaining: remainingBackupCodes(user.id),
   };

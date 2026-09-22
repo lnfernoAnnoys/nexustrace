@@ -11,6 +11,7 @@ import { KeyPlayersPanel } from "@/components/graph/KeyPlayersPanel";
 import { EntityIconBadge } from "@/components/shared/EntityIcon";
 import { allEntities, relationships as allRelationships, cases, computeCentrality, getEntitiesForCase, getRelationshipsForCase, getEntity } from "@/data";
 import { findShortestPath } from "@/data";
+import { tr, trn } from "@/i18n";
 
 function pathToEdgeIds(path: string[], rels: { id: string; sourceId: string; targetId: string }[]): Set<string> {
   const set = new Set<string>();
@@ -89,8 +90,8 @@ export default function NetworkExplorer() {
   return (
     <div className="flex h-[calc(100vh-6rem)] flex-col gap-3">
       <div>
-        <h1 className="text-lg font-semibold text-text">Network Explorer</h1>
-        <p className="text-xs text-text-secondary">Cross-case relationship graph — every tracked entity and connection</p>
+        <h1 className="text-lg font-semibold text-text">{tr("nav.network")}</h1>
+        <p className="text-xs text-text-secondary">{tr("net.subtitle")}</p>
       </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[240px_1fr_320px]">
@@ -117,7 +118,7 @@ export default function NetworkExplorer() {
         <Card className="relative min-h-0 overflow-hidden p-0">
           <div className="absolute right-3 top-3 z-10">
             <Button size="sm" variant="secondary" onClick={() => graphRef.current?.zoomToFit()}>
-              <RotateCcw size={12} /> Reset View
+              <RotateCcw size={12} /> {tr("net.resetView")}
             </Button>
           </div>
           <NetworkGraph
@@ -138,8 +139,8 @@ export default function NetworkExplorer() {
         <Card className="overflow-y-auto p-0">
           {findConnectionMode ? (
             <div className="p-4">
-              <p className="mb-3 text-[11px] font-medium uppercase tracking-wide text-cyan-300">Find Connection</p>
-              <p className="mb-3 text-xs text-text-secondary">Click two nodes to reveal the shortest path between them across the network.</p>
+              <p className="mb-3 text-[11px] font-medium uppercase tracking-wide text-cyan-300">{tr("net.findConnection")}</p>
+              <p className="mb-3 text-xs text-text-secondary">{tr("net.findHint")}</p>
               <div className="flex flex-col gap-2">
                 {[0, 1].map((i) => {
                   const id = connectionPick[i];
@@ -153,7 +154,7 @@ export default function NetworkExplorer() {
                           <span className="text-xs text-text">{e.name}</span>
                         </>
                       ) : (
-                        <span className="text-xs text-text-muted">Click a node…</span>
+                        <span className="text-xs text-text-muted">{tr("net.clickNode")}</span>
                       )}
                     </div>
                   );
@@ -162,11 +163,11 @@ export default function NetworkExplorer() {
               {pathResult !== undefined && (
                 <div className="mt-4 border-t border-border pt-3">
                   {pathResult === null ? (
-                    <p className="text-xs text-red">No path found within the current filters.</p>
+                    <p className="text-xs text-red">{tr("net.noPath")}</p>
                   ) : (
                     <>
                       <p className="mb-2 text-xs text-green">
-                        Path found — {pathResult.length - 1} hop{pathResult.length - 1 === 1 ? "" : "s"}
+                        {trn("net.pathFound", pathResult.length - 1)}
                       </p>
                       <div className="flex flex-col gap-1.5">
                         {pathResult.map((id, i) => {
@@ -195,7 +196,7 @@ export default function NetworkExplorer() {
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
               <Share2 size={24} className="text-text-muted" />
-              <p className="text-xs text-text-muted">Click any node to inspect it, or enable Key Players / Find Connection.</p>
+              <p className="text-xs text-text-muted">{tr("net.empty")}</p>
             </div>
           )}
         </Card>

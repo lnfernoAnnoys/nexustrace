@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/*
+ * Theming: everything below is one theme ("Cyan Ops", the original look) expressed as CSS custom
+ * properties. `--color-cyan-*` is Tailwind's own colour scale — the app calls it by name everywhere
+ * (`text-cyan-400`, `bg-cyan-500/10`, …), so redefining that scale for another theme re-skins every
+ * one of those classes at once, with no component changes. See the theme blocks further down.
+ */
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
@@ -27,6 +33,110 @@
   --animate-pulse-slow: pulse-slow 2.4s ease-in-out infinite;
   --animate-scan: scan 2.6s linear infinite;
   --animate-fade-up: fade-up 0.4s ease-out both;
+}
+
+/* ---- Theme 2: "Amber Watch" — dark, warm control-room amber instead of cyan --------------------- */
+:root[data-theme="dark-amber"] {
+  color-scheme: dark;
+  --color-bg: #0f0d0a;
+  --color-bg-elevated: #161310;
+  --color-panel: #1c1712;
+  --color-panel-hover: #221c15;
+  --color-border: #332a1e;
+  --color-border-strong: #473a29;
+
+  --color-text: #f5efe6;
+  --color-text-secondary: #b8a98d;
+  --color-text-muted: #7a6a52;
+
+  --color-cyan: #fbbf24;
+  --color-cyan-dim: #b45309;
+  --color-cyan-50: #fffbeb;
+  --color-cyan-100: #fef3c7;
+  --color-cyan-200: #fde68a;
+  --color-cyan-300: #fcd34d;
+  --color-cyan-400: #fbbf24;
+  --color-cyan-500: #f59e0b;
+  --color-cyan-600: #d97706;
+  --color-cyan-700: #b45309;
+  --color-cyan-800: #92400e;
+  --color-cyan-900: #78350f;
+  --color-cyan-950: #451a03;
+}
+
+/* ---- Theme 3: "Daylight Blue" — light, cool, corporate blue accent ------------------------------ */
+:root[data-theme="light-blue"] {
+  color-scheme: light;
+  --color-bg: #f3f5fa;
+  --color-bg-elevated: #ffffff;
+  --color-panel: #ffffff;
+  --color-panel-hover: #edf1f9;
+  --color-border: #dde3ee;
+  --color-border-strong: #c4cee0;
+
+  --color-text: #101828;
+  --color-text-secondary: #47546b;
+  --color-text-muted: #7c8aa0;
+
+  /* the app's shade numbers (300/400 for emphasis text, 500 for solid buttons) assume a dark page
+     behind bright text, so on a light page the ramp is inverted: low numbers get the dark, legible
+     tones and only the unused top of the scale stays light. */
+  --color-cyan: #2563eb;
+  --color-cyan-dim: #1d4ed8;
+  --color-cyan-50: #eff6ff;
+  --color-cyan-100: #dbeafe;
+  --color-cyan-200: #1d4ed8;
+  --color-cyan-300: #1d4ed8;
+  --color-cyan-400: #1e40af;
+  --color-cyan-500: #2563eb;
+  --color-cyan-600: #1e3a8a;
+  --color-cyan-700: #1e3a8a;
+  --color-cyan-800: #172554;
+  --color-cyan-900: #172554;
+  --color-cyan-950: #0f172a;
+
+  --color-purple: #7c3aed;
+  --color-orange: #c2410c;
+  --color-blue: #2563eb;
+  --color-green: #15803d;
+  --color-amber: #b45309;
+  --color-red: #dc2626;
+}
+
+/* ---- Theme 4: "Warm Paper" — light, warm ivory with a deep teal accent -------------------------- */
+:root[data-theme="light-warm"] {
+  color-scheme: light;
+  --color-bg: #faf6ee;
+  --color-bg-elevated: #fffdf8;
+  --color-panel: #fffdf8;
+  --color-panel-hover: #f3ecdd;
+  --color-border: #e6dcc7;
+  --color-border-strong: #d3c2a0;
+
+  --color-text: #2b2013;
+  --color-text-secondary: #6b5b3f;
+  --color-text-muted: #96825b;
+
+  --color-cyan: #0f766e;
+  --color-cyan-dim: #115e59;
+  --color-cyan-50: #f0fdfa;
+  --color-cyan-100: #ccfbf1;
+  --color-cyan-200: #115e59;
+  --color-cyan-300: #115e59;
+  --color-cyan-400: #0f766e;
+  --color-cyan-500: #0d9488;
+  --color-cyan-600: #134e4a;
+  --color-cyan-700: #134e4a;
+  --color-cyan-800: #042f2e;
+  --color-cyan-900: #042f2e;
+  --color-cyan-950: #021917;
+
+  --color-purple: #6d28d9;
+  --color-orange: #c2410c;
+  --color-blue: #1d4ed8;
+  --color-green: #15803d;
+  --color-amber: #b45309;
+  --color-red: #b91c1c;
 }
 
 @keyframes pulse-slow {
@@ -102,15 +212,19 @@ body {
 }
 
 .glass {
-  background: rgba(18, 24, 38, 0.72);
+  background: color-mix(in srgb, var(--color-panel) 72%, transparent);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
 
 .glow-cyan {
-  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.35), 0 0 24px rgba(34, 211, 238, 0.15);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-cyan-500) 45%, transparent),
+    0 0 24px color-mix(in srgb, var(--color-cyan-500) 22%, transparent);
 }
 
 .glow-red {
-  box-shadow: 0 0 0 1px rgba(244, 63, 94, 0.4), 0 0 24px rgba(244, 63, 94, 0.18);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-red) 55%, transparent),
+    0 0 24px color-mix(in srgb, var(--color-red) 25%, transparent);
 }

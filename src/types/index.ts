@@ -11,16 +11,68 @@ export type RiskLevel = "low" | "medium" | "high" | "critical";
 export type CaseStatus = "active" | "under_review" | "closed";
 export type CasePriority = "low" | "medium" | "high" | "critical";
 
+/** A public source (article, court order, regulator page) that backs a fact. */
+export interface SourceLink {
+  title: string;
+  url: string;
+  publisher: string;
+}
+
+/** An openly licensed picture, with the credit its licence requires. */
+export interface ImageRef {
+  url: string;
+  caption: string;
+  credit: string;
+  license: string;
+  pageUrl: string;
+}
+
+/** One documented official account of a public figure or organisation. */
+export interface SocialProfile {
+  platform: string;
+  handle: string;
+  url: string;
+}
+
+/** The official accounts documented for one public figure or organisation (from Wikidata, stored, not searched live). */
+export interface SocialPresence {
+  entityId: string;
+  wikidataId: string;
+  label: string;
+  description: string;
+  wikipediaUrl: string;
+  website?: string;
+  deceased: boolean;
+  profiles: SocialProfile[];
+}
+
+/** One line of the explanation behind a risk score. Points add up (and may be negative). */
+export interface RiskFactor {
+  label: string;
+  points: number;
+  detail: string;
+}
+
 export interface BaseEntity {
   id: string;
   type: EntityType;
   name: string;
-  riskScore: number; // 0-100
+  riskScore: number; // 0-100, the sum of riskFactors (clamped)
   riskLevel: RiskLevel;
   caseIds: string[];
   tags?: string[];
   createdAt: string;
   summary: string;
+  /** Role in the case, e.g. "Chairman, Satyam Computer Services". */
+  role?: string;
+  /** Where the matter stands according to public records, e.g. "Convicted (Apr 2015)". */
+  legalStatus?: string;
+  /** Longer plain-English description. */
+  description?: string;
+  /** Why the risk score is what it is. */
+  riskFactors?: RiskFactor[];
+  sources?: SourceLink[];
+  image?: ImageRef;
 }
 
 export interface PersonEntity extends BaseEntity {
@@ -117,6 +169,17 @@ export interface CaseRecord {
   status: CaseStatus;
   priority: CasePriority;
   description: string;
+  /** Year the matter came to light. */
+  year?: number;
+  /** Where it happened. */
+  place?: string;
+  /** How big it was, in plain words (amount lost, people affected). */
+  impact?: string;
+  /** How it stands today according to public records. */
+  outcome?: string;
+  /** Articles and public records to read more. */
+  sources?: SourceLink[];
+  images?: ImageRef[];
   entityIds: string[];
   assignedInvestigators: { name: string; badge: string; initials: string }[];
   createdAt: string;
@@ -183,4 +246,7 @@ export interface EvidenceDocument {
   extractionStatus: ExtractionStatus;
   sizeKb: number;
   extractedText?: string;
+  /** Where the underlying public source can be read. */
+  sourceUrl?: string;
+  sourceName?: string;
 }

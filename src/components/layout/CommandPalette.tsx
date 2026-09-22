@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { EntityIcon } from "@/components/shared/EntityIcon";
 import { FolderLock } from "lucide-react";
-import { allEntities, cases } from "@/data";
+import { allEntities, cases, ENTITY_TYPE_LABEL } from "@/data";
+import { tr } from "@/i18n";
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const navigate = useNavigate();
@@ -34,10 +35,10 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="top-[18%] max-w-xl translate-y-0 p-0">
         <Command shouldFilter={true}>
-          <CommandInput placeholder="Search people, phones, vehicles, cases…" value={query} onValueChange={setQuery} autoFocus />
+          <CommandInput placeholder={tr("palette.placeholder")} value={query} onValueChange={setQuery} autoFocus />
           <CommandList>
-            <CommandEmpty>No results found.</CommandEmpty>
-            <CommandGroup heading="Cases">
+            <CommandEmpty>{tr("palette.empty")}</CommandEmpty>
+            <CommandGroup heading={tr("palette.cases")}>
               {cases.map((c) => (
                 <CommandItem key={c.id} value={`${c.id} ${c.title}`} onSelect={() => go(`/cases/${c.id}`)}>
                   <FolderLock size={14} className="text-cyan-400" />
@@ -46,7 +47,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                 </CommandItem>
               ))}
             </CommandGroup>
-            <CommandGroup heading="Entities">
+            <CommandGroup heading={tr("palette.entities")}>
               {allEntities.slice(0, 60).map((e) => (
                 <CommandItem
                   key={e.id}
@@ -55,7 +56,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                 >
                   <EntityIcon type={e.type} size={14} />
                   <span className="flex-1 truncate">{e.name}</span>
-                  <span className="text-[10px] text-text-muted capitalize">{e.type.replace("_", " ")}</span>
+                  <span className="text-[10px] text-text-muted">{ENTITY_TYPE_LABEL[e.type]}</span>
                 </CommandItem>
               ))}
             </CommandGroup>

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { LevelBadge, RequestStatusBadge } from "@/components/shared/LevelPips";
 import { MAX_ACCESS_LEVEL } from "@/lib/access";
-import { adminApi, errorText } from "../adminApi";
+import { adminApi, errorText, fileUrl } from "../adminApi";
 import { usePending } from "../AdminShell";
 import { DocumentGrid, Initials, LevelPicker, when } from "../components";
 import { useAdminData } from "../useAdminData";
@@ -84,7 +84,7 @@ export default function RequestDetail() {
               <CardTitle>Identity documents ({r.files.length})</CardTitle>
             </CardHeader>
             <CardContent>
-              <DocumentGrid requestId={r.id} files={r.files} />
+              <DocumentGrid files={r.files} urlFor={(fileId, dl) => fileUrl(r.id, fileId, dl)} />
             </CardContent>
           </Card>
         </div>

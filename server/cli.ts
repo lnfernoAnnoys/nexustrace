@@ -48,8 +48,9 @@ const [command, ...args] = process.argv.slice(2);
 switch (command) {
   case "list": {
     for (const u of listUsers()) {
+      const status = u.status === "active" ? "       " : u.status === "banned" ? "BANNED " : "PENDING";
       console.log(
-        `${u.username.padEnd(28)} ${u.name.padEnd(22)} level ${u.access_level}  ${u.role === "admin" ? "ADMIN  " : "       "}2FA: ${u.totp_enabled ? "on" : "not set up"}`,
+        `${u.username.padEnd(28)} ${u.name.padEnd(22)} level ${u.access_level}  ${u.role === "admin" ? "ADMIN  " : "       "}${status}  2FA: ${u.totp_enabled ? "on" : "not set up"}`,
       );
     }
     break;
@@ -66,7 +67,9 @@ switch (command) {
       name: flag(args, "name") ?? username,
       badge: flag(args, "badge"),
       department: flag(args, "department"),
+      position: flag(args, "position"),
       email: flag(args, "email"),
+      status: "active", // made from the CLI/trusted side, so it skips the sign-up approval queue
     });
     if (level !== 1) setAccessLevel(user.id, level);
     if (args.includes("--admin")) setRole(user.id, "admin");

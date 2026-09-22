@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "@/lib/api";
+import { clearDataset } from "@/data/loader";
 
 export interface AuthUser {
   id: number;
@@ -7,9 +8,11 @@ export interface AuthUser {
   name: string;
   badge: string;
   department: string;
+  position: string;
   email: string;
   role: "user" | "admin";
   accessLevel: number;
+  status: "pending_approval" | "active" | "banned";
   twoFactorEnabled: boolean;
   backupCodesRemaining: number;
 }
@@ -54,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await api("/auth/logout", { method: "POST" });
     } finally {
+      clearDataset();
       setUser(null);
     }
   }, [setUser]);

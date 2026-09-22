@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { tr } from "@/i18n";
 
 const ALL_ENTITY_TYPES: EntityType[] = ["person", "phone", "vehicle", "organization", "location", "financial_account"];
 const ALL_REL_TYPES: RelationshipType[] = ["call", "sms", "financial_transaction", "association", "co_location", "vehicle_ownership", "family", "business"];
@@ -56,11 +57,11 @@ export function GraphFilters({
     <div className="flex flex-col gap-5 text-xs">
       {showCaseFilter && cases && (
         <div>
-          <Label className="mb-1.5 block">Case</Label>
+          <Label className="mb-1.5 block">{tr("net.f.case")}</Label>
           <Select value={state.caseId} onValueChange={(v) => onChange({ ...state, caseId: v })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Cases</SelectItem>
+              <SelectItem value="all">{tr("net.f.allCases")}</SelectItem>
               {cases.map((c) => (
                 <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
               ))}
@@ -70,36 +71,36 @@ export function GraphFilters({
       )}
 
       <div>
-        <Label className="mb-2 block">Layout</Label>
+        <Label className="mb-2 block">{tr("net.f.layout")}</Label>
         <div className="grid grid-cols-3 gap-1 rounded-md border border-border bg-panel p-1">
           {(["force", "circular", "risk"] as GraphLayout[]).map((l) => (
             <button
               key={l}
               onClick={() => onLayoutChange(l)}
               className={cn(
-                "rounded px-1.5 py-1 text-[11px] capitalize transition-colors",
+                "rounded px-1.5 py-1 text-[11px] transition-colors",
                 layout === l ? "bg-cyan-500/15 text-cyan-300" : "text-text-secondary hover:bg-panel-hover",
               )}
             >
-              {l === "risk" ? "Risk Rings" : l}
+              {tr(`net.f.layout.${l}`)}
             </button>
           ))}
         </div>
       </div>
 
       <div className="flex items-center justify-between">
-        <Label>Key Players</Label>
+        <Label>{tr("net.f.keyPlayers")}</Label>
         <Switch checked={keyPlayersMode} onCheckedChange={onToggleKeyPlayers} />
       </div>
       <div className="flex items-center justify-between">
-        <Label>Find Connection</Label>
+        <Label>{tr("net.findConnection")}</Label>
         <Switch checked={findConnectionMode} onCheckedChange={onToggleFindConnection} />
       </div>
 
       <Separator />
 
       <div>
-        <Label className="mb-2 block">Minimum Connection Strength</Label>
+        <Label className="mb-2 block">{tr("net.f.minStrength")}</Label>
         <Slider min={1} max={10} step={1} value={[state.minStrength]} onValueChange={([v]) => onChange({ ...state, minStrength: v })} />
         <p className="mt-1 mono text-[10px] text-text-muted">≥ {state.minStrength} / 10</p>
       </div>
@@ -107,7 +108,7 @@ export function GraphFilters({
       <Separator />
 
       <div>
-        <Label className="mb-2 block">Entity Types</Label>
+        <Label className="mb-2 block">{tr("net.f.entityTypes")}</Label>
         <div className="flex flex-col gap-1.5">
           {ALL_ENTITY_TYPES.map((t) => (
             <label key={t} className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 hover:bg-panel-hover">
@@ -133,7 +134,7 @@ export function GraphFilters({
       <Separator />
 
       <div>
-        <Label className="mb-2 block">Relationship Types</Label>
+        <Label className="mb-2 block">{tr("dash.relTypes")}</Label>
         <div className="flex flex-col gap-1.5">
           {ALL_REL_TYPES.map((t) => (
             <label key={t} className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 hover:bg-panel-hover">

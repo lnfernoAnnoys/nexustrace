@@ -168,6 +168,10 @@ export const NetworkGraph = forwardRef<NetworkGraphHandle, NetworkGraphProps>(fu
   useEffect(() => {
     const nodes = graphData.nodes;
 
+    // the more nodes there are, the harder they push apart, so that separate cases form visible clusters
+    fgRef.current?.d3Force("charge")?.strength(-30 - Math.min(nodes.length, 120) * 2.2);
+    fgRef.current?.d3Force("link")?.distance(30 + Math.min(nodes.length, 120) * 0.5);
+
     if (layout === "circular") {
       const sorted = [...nodes].sort((a, b) => (a.type as string).localeCompare(b.type as string));
       const angleById = new Map<string, number>();
@@ -201,15 +205,25 @@ export const NetworkGraph = forwardRef<NetworkGraphHandle, NetworkGraphProps>(fu
       fgRef.current?.d3Force("layout", null);
     }
     fgRef.current?.d3ReheatSimulation();
+    fitWhenSettled.current = true;
     const t = setTimeout(() => fgRef.current?.zoomToFit(500, 60), 700);
     return () => clearTimeout(t);
   }, [layout, graphData]);
 
   useEffect(() => {
+    fitWhenSettled.current = true;
     const t = setTimeout(() => fgRef.current?.zoomToFit(500, 60), 350);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graphData]);
+
+  // the first fits happen while the nodes are still moving apart, so fit once more when the layout has settled
+  const fitWhenSettled = useRef(true);
+  const handleEngineStop = useCallback(() => {
+    if (!fitWhenSettled.current) return;
+    fitWhenSettled.current = false;
+    fgRef.current?.zoomToFit(400, 60);
+  }, []);
 
   const nodeRadius = useCallback(
     (entity: Entity) => {
@@ -353,6 +367,7 @@ export const NetworkGraph = forwardRef<NetworkGraphHandle, NetworkGraphProps>(fu
         d3AlphaDecay={0.028}
         d3VelocityDecay={0.32}
         cooldownTime={4000}
+        onEngineStop={handleEngineStop}
         linkColor={linkColor}
         linkWidth={linkWidth}
         linkLineDash={staticLinkLineDash}

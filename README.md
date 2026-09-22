@@ -2,7 +2,11 @@
 
 Prototype for **SIH26189** (Ministry of Home Affairs — Blockchain & Cybersecurity theme). A dark, intelligence-platform-style web app for investigators to explore entities (people, phones, vehicles, organizations, locations, financial accounts), their relationships, AI-flagged suspicious patterns, and case timelines through an interactive network graph.
 
-All data is synthetic and fictional, defined in `src/data/`.
+The case files are **ten real Indian cases** compiled from public records: the 26/11 Mumbai attacks, the Bhopal gas disaster, the 1992 Harshad Mehta securities scam, Satyam, the 2G spectrum case, Nirav Modi / PNB, NSEL, Saradha, Kingfisher / Vijay Mallya and AgustaWestland. Each person, company and place has a role, a legal status as reported in public records, a plain-English description, a risk score with the reasons behind it, and links to the articles it is based on. Photos are openly licensed pictures from Wikimedia Commons, credited on the page. The files hold no personal phone numbers or home addresses: only company registered offices, crime locations and facts that are in published sources.
+
+The **NLP engine** (`src/nlp/`) is real and runs in the browser, with no API and no model download. See *NLP engine* below.
+
+The case data is served by the API only to signed-in users (`GET /api/dataset`); it is not part of the public JavaScript bundle.
 
 ## Run it
 
@@ -93,6 +97,43 @@ Run only one `npm run dev` at a time: a second one can't use port 3001, and Vite
 
 If `npm install` fails on `better-sqlite3` (a native module), install the Visual Studio "Desktop development with C++" build tools, or use a Node version that has a prebuilt binary.
 
+## NLP engine
+
+Paste an FIR, a news report or a court order into **Evidence Intake** or the **AI Insights → NLP Lab**, and the engine finds:
+
+- people (with aliases: "Sajid Mir, alias Wasi"), companies, places, vehicle plates, phone numbers and bank accounts;
+- who is in the graph already (fuzzy matching: "Mehta" = "Harshad Mehta", "Union Carbide" = "Union Carbide Corporation", "NSEL" = "National Spot Exchange Ltd (NSEL)");
+- the links between them ("son of", "transferred", "was arrested in", "co-accused"), each with the words that triggered it and a confidence;
+- amounts, dates, legal sections and a crime category.
+
+Investigating agencies and officials are recognised but kept out of the network. In the review window the investigator ticks what to add and it goes into the case graph. It is rule-based (tokeniser, sentence splitter, gazetteers, cue rules, Jaro-Winkler matching), so it takes a few milliseconds and nothing leaves the browser. Word lists are plain data in `src/nlp/lexicon.ts`. `npx tsx src/nlp/selfcheck.ts` runs sample texts and checks the expected results are found.
+
+Text added on Evidence Intake, and entities added from the review window, live in the browser only (they are gone after a reload); the ten cases come from the server each time.
+
+## Importing many cases from one file
+
+**Cases → Import from file** (or the *Import from file* tab of *New Case*) turns a CSV or Excel file into many cases at once, one case per row.
+
+1. Drop a `.csv` or `.xlsx` (up to 5 MB and 500 rows; the first row must be column names). *Download template* gives a CSV to start from. Old `.xls` files are refused with a message asking to save as `.xlsx` or CSV. The file is read in the browser and never uploaded.
+2. Columns are matched to case fields by their names ("Case Name", "Type of Crime", "FIR Year", "Accused Names", …). The page shows what it matched and lets you change any of them. If a workbook has several sheets you pick one.
+3. A preview lists every case that will be created, with notes on problems: a row with no title, a title that already exists (or repeats an earlier row) is left out by default, and an unknown status, priority or year falls back to a default with a warning. Untick any row to leave it out.
+4. Only a **title** is needed. Other columns: description, category, status, priority, year, place, lead agency (separate several with `;`), impact, outcome, people and organisations (separate names with `;`).
+5. *Create* adds the cases. Names in the people and organisations columns become entities in the case. With *Read each description with the NLP engine* ticked (the default), people, companies, places and the links between them found in each description are added too. A name that is already in the graph, or appears in several rows, is one entity that belongs to each of those cases, which is how cross-case links show up.
+
+Imported cases are held in the browser like anything added on Evidence Intake: they are not stored on the server and are gone after a reload. The code is in `src/lib/tabular.ts` (CSV parser and lazy-loaded Excel reader, using `read-excel-file`), `src/data/caseImport.ts` (column matching, validation and the import) and `src/components/cases/ImportCasesPanel.tsx`.
+
+## Social media intelligence
+
+The **Social Intelligence** page lists every person and organisation in the cases and what is documented about their official social media accounts.
+
+- **Where accounts come from:** Wikidata (the public database behind Wikipedia). `server/dataset/fetch-social.ts` ties each public figure or organisation to one Wikipedia article by hand, reads the accounts Wikidata documents for it (X, Instagram, Facebook, YouTube, LinkedIn, official website) and writes `server/dataset/social.ts`. Run `npx tsx server/dataset/fetch-social.ts` to refresh it. The app never calls Wikidata or any social platform at run time, so it works offline and shows the same thing every time.
+- **Each name gets one of three statuses:** *Official account found*, *Checked, none listed*, or *Not searched*. The page says why for every row.
+- **Not searched, on purpose:** private individuals, victims and people accused of terrorism. Matching a name to a personal profile is unreliable and can point at the wrong person, and there is no source to cite. The tool does not scrape platforms, call platform APIs or generate search links for a person.
+- **Handle finder:** paste text (a complaint, a screenshot's text, a news report) and the engine picks out handles and profile links (`src/nlp/handles.ts`). Each one is checked against the documented accounts: a match points to the person or organisation in the case, anything else is flagged for a person to review. The same handles appear as facts in the NLP Lab and the Evidence Intake review window.
+- Entity pages for people and organisations show a *Social media presence* card with the same information and its source.
+
+To add a name, add its entity id and exact English Wikipedia title to `CHECKED` in `fetch-social.ts` and run the script. Only add public figures and organisations, and check that the article is about the same entity as the one in the case (a parent company or a scandal with the same name is a different thing).
+
 ## Stack
 
 - Vite + React + TypeScript
@@ -105,7 +146,10 @@ If `npm install` fails on `better-sqlite3` (a native module), install the Visual
 ## Structure
 
 - `src/types` — shared TypeScript interfaces (entities, relationships, cases, events, alerts, evidence)
-- `src/data` — synthetic dataset (4 cases, ~57 entities, ~70 relationships, events, alerts, evidence) plus helper functions (`computeCentrality`, `findShortestPath`, per-case lookups)
+- `src/data` — the in-browser store (filled after sign-in by `loader.ts`) plus helper functions (`computeCentrality`, `findShortestPath`, per-case lookups, `computeAlerts`: patterns worked out from the graph itself)
+- `src/nlp` — the NLP engine (`extract.ts`, `lexicon.ts`, `handles.ts`, `toGraph.ts`, `selfcheck.ts`)
+- `src/data/social.ts`, `src/components/social`, `src/pages/SocialIntelligence.tsx` — the social media intelligence page and card
+- `src/lib/tabular.ts`, `src/data/caseImport.ts`, `src/components/cases` — importing cases from CSV / Excel
 - `src/components/graph` — the network graph, filters, legend, node detail panel, key-players ranking
 - `src/components/layout` — sidebar, topbar, command palette (⌘K)
 - `src/components/evidence` — AI extraction review modal
@@ -113,10 +157,11 @@ If `npm install` fails on `better-sqlite3` (a native module), install the Visual
 - `src/context/AuthContext.tsx`, `src/lib/api.ts`, `src/components/auth` — frontend side of sign-in (session, route protection, 2FA UI)
 - `admin/index.html`, `src/admin/` — the admin console (its own sign-in, pages and styling; it reuses the shared components and talks to `/api/admin`)
 - `src/components/settings/AccessPanel.tsx` — the investigator's Access tab (current level, request form, history)
-- `server/` — the API (see *Backend* above); case, entity and alert data is still the built-in sample data in `src/data`
+- `server/` — the API (see *Backend* above)
+- `server/dataset/` — the ten real cases: `cases.ts`, `entities.ts`, `relationships.ts`, `events.ts`, `evidence.ts`, `social.ts` (generated, see *Social media intelligence*), and `build.ts` (helpers that build entities, risk factors and Commons image links). `checkDataset()` runs at start-up and logs anything inconsistent (duplicate ids, or links, events and documents that point at something that doesn't exist). Risk scores are always worked out from their `riskFactors`, so a score can't disagree with its reasons.
 
 ## Notes for extending this
 
-- To add real data, replace the arrays in `src/data/*.ts` — the rest of the app (graph, centrality ranking, entity profiles, tables) reads from those and needs no changes as long as the shapes in `src/types` are respected.
-- The AI extraction / suspicious-pattern features are simulated (deterministic mock results in `src/data/extractions.ts` and `src/data/alerts.ts`) — wire these to a real NLP/ML backend by replacing those data sources with API calls.
-- `npm run build` produces a static `dist/` bundle deployable to any static host (Vercel, Netlify, GitHub Pages).
+- To add a case, add its records under `server/dataset/` and follow the shapes in `src/types`. Give each entity a risk score made of `riskFactors` (label, points, detail) so the page can explain it, and a source link for every claim. Restart the server; the rest of the app (graph, centrality ranking, entity profiles, alerts, tables) needs no changes.
+- Only add pictures that are openly licensed (Wikimedia Commons), with their credit and licence. The server's Content-Security-Policy allows images from `upload.wikimedia.org`, `thumb.wikimedia.org` and `commons.wikimedia.org` and nowhere else; change `img-src` in `server/index.ts` if you use another source.
+- The app needs the API for sign-in and for the case data, so it cannot be hosted as a static site; follow [DEPLOY.md](DEPLOY.md).

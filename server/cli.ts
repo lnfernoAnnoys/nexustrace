@@ -16,7 +16,7 @@ import {
 const USAGE = `Usage: npm run user -- <command>
 
   list                                   Show all users with their access level and role
-  create <username> <password> [--name "Full Name"] [--badge ID] [--department "Unit"] [--email a@b.gov.in] [--admin] [--level 1-8]
+  create <username> <password> [--name "Full Name"] [--badge ID] [--department "Unit"] [--position "Rank"] [--email a@b.gov.in] [--admin] [--level 1-8]
   make-admin <username>                  Let them sign in to the admin console (access levels and requests)
   remove-admin <username>                Take that away
   set-level <username> <1-8>             Change someone's access level

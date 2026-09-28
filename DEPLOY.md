@@ -22,7 +22,7 @@ Do part 1 first. Approval can take a few days, and everything else waits on it.
 1. **GitHub Student Developer Pack**: https://education.github.com/pack. Sign in with your GitHub account and apply. You need your college email or a photo of your student ID. Your GitHub profile name should match your ID, and your browser must be allowed to share its location while you apply.
    Approval is quick, but the **partner offers (Azure, Namecheap) only unlock 72 hours (3 days) after approval**. GitHub shows "Awaiting Benefits" until then. Azure won't verify you before that, so wait for the message to change, and you'll get an email too. If nothing has unlocked after 5 days, post in the [GitHub Education community](https://github.com/orgs/community/discussions/categories/github-education).
 2. When the benefits unlock, the pack page lists the offers. Claim two:
-   - **Namecheap: a free `.me` domain for 1 year.** Pick a name, e.g. `nexustrace.me`.
+   - **Namecheap: a free `.me` domain for 1 year.** Pick a name, e.g. `yourproject.me`.
    - **Microsoft Azure for Students: $100 credit.** No credit card needed. It is the credit that pays for the server. Start from the Azure offer on the pack page (not by searching for Azure yourself) and sign in with a Microsoft account. GitHub and Microsoft check students separately, so being approved by GitHub is not enough on its own until the offer has unlocked. If Azure still can't verify you, its other route is your college email or a manual review that can take 3 to 5 working days.
 
 ## 2. Create the server on Azure
@@ -47,7 +47,7 @@ Click **Review + create → Create**. When it asks, **download the private key**
 
 When it finishes, open the VM and note its **Public IP address**.
 
-> If Azure refuses to create any VM in any allowed region (this happens to some student accounts), tell me. The fallback is a cheap DigitalOcean server, and the same scripts work there.
+> If Azure refuses to create any VM in any allowed region (this happens to some student accounts), any cheap Ubuntu 24.04 server works instead (DigitalOcean, for example); the same scripts run there.
 
 ## 3. Point the domain at the server
 
@@ -78,23 +78,12 @@ Type `yes` the first time. The prompt changes to `azureuser@nexustrace:~$`. Ever
 
 ## 5. Get the code onto the server
 
-The GitHub repository is private, so give the server its own read-only key:
-
 ```bash
-ssh-keygen -t ed25519 -N "" -f ~/.ssh/nexustrace_deploy
-cat ~/.ssh/nexustrace_deploy.pub
-```
-
-Copy the line it prints. On GitHub open the `nexustrace` repository → **Settings → Deploy keys → Add deploy key**, paste it, leave *Allow write access* **unticked**, save. Back on the server:
-
-```bash
-export GIT_SSH_COMMAND="ssh -i ~/.ssh/nexustrace_deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
-git clone git@github.com:lnfernoAnnoys/nexustrace.git
+git clone https://github.com/lnfernoAnnoys/nexustrace.git
 cd nexustrace
-git config core.sshCommand "ssh -i ~/.ssh/nexustrace_deploy -o IdentitiesOnly=yes"
 ```
 
-(The code has to be pushed to GitHub first. Ask me to commit and push if you haven't.)
+(If you deploy from a private fork, give the server a read-only [deploy key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys) and clone over SSH instead.)
 
 ## 6. Install and start everything
 
@@ -126,7 +115,7 @@ Open `https://yourdomain.me/admin/` and sign in. You'll set up the authenticator
 ## Before you show it to anyone
 
 - **Back up** `~/nexustrace/server/data/` (the database **and** `app.key`; without the key every authenticator has to be set up again). To copy it to your PC, on the server: `sudo systemctl stop nexustrace && tar czf ~/backup.tgz -C ~/nexustrace server/data && sudo systemctl start nexustrace`, then on your PC: `scp -i key.pem azureuser@VM_IP:backup.tgz .`
-- **Sign-up** is open by default. Set `SIGNUP_OPEN=false` in `/etc/nexustrace.env` and restart if only people you create should get in.
+- **Sign-up** is open by default, but every new account waits for an administrator to approve it (**Pending Accounts** in the admin console) before it can sign in. Set `SIGNUP_OPEN=false` in `/etc/nexustrace.env` and restart if only people you create from the command line should get in.
 - **Tell everyone to upload dummy ID files.** Documents are encrypted at rest, but a hackathon server is the wrong place for real Aadhaar cards.
 - Don't share the `.pem` key or the `nexustrace.env` file.
 
